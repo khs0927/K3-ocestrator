@@ -1,0 +1,69 @@
+{
+  "orchestrator": [
+    "k3-256k",
+    "k3",
+    "nvidia-glm-5.2",
+    "nvidia-deepseek-v4-pro"
+  ],
+  "planner": [
+    "k3-256k",
+    "nvidia-glm-5.2",
+    "k3",
+    "zai-glm-5.2",
+    "glm-web-advisory"
+  ],
+  "architect": [
+    "nvidia-glm-5.2",
+    "k3",
+    "nvidia-deepseek-v4-pro",
+    "zai-glm-5.2"
+  ],
+  "coder": [
+    "k3-256k",
+    "nvidia-deepseek-v4-flash",
+    "deepseek-v4-flash",
+    "nvidia-glm-5.2"
+  ],
+  "reviewer": [
+    "nvidia-deepseek-v4-pro",
+    "nvidia-glm-5.2",
+    "k3-256k",
+    "deepseek-v4-pro",
+    "zai-glm-5.2"
+  ],
+  "researcher": [
+    "nvidia-glm-5.2",
+    "k3",
+    "nvidia-deepseek-v4-flash",
+    "glm-web-advisory",
+    "deepseek-web-advisory"
+  ],
+  "fast": [
+    "nvidia-deepseek-v4-flash",
+    "deepseek-v4-flash",
+    "k3-256k"
+  ],
+  "test": [
+    "nvidia-deepseek-v4-flash",
+    "k3-256k",
+    "deepseek-v4-flash"
+  ],
+  "security": [
+    "nvidia-deepseek-v4-pro",
+    "k3",
+    "deepseek-v4-pro",
+    "nvidia-glm-5.2"
+  ],
+  "long_context": [
+    "k3",
+    "nvidia-glm-5.2",
+    "nvidia-deepseek-v4-pro",
+    "zai-glm-5.2"
+  ],
+  "hard_reasoning": [
+    "k3",
+    "nvidia-deepseek-v4-pro",
+    "nvidia-glm-5.2",
+    "deepseek-v4-pro"
+  ]
+}

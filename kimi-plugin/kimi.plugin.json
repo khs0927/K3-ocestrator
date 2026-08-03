@@ -1,0 +1,11 @@
+{
+  "name": "multi-model-orchestrator-policy",
+  "version": "0.6.0",
+  "description": "Kimi-led plan-implement-test-review workflow with DeepSeek and GLM independent subagents.",
+  "skills": "./skills/",
+  "sessionStart": {"skill": "orchestrator-policy"},
+  "interface": {
+    "displayName": "Multi-Model Orchestrator Policy",
+    "shortDescription": "Kimi + DeepSeek + GLM engineering orchestration"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "profiles": {
+    "deepseek": {
+      "url": "https://chat.deepseek.com/",
+      "model": "deepseek-web",
+      "input_selectors": ["textarea", "[contenteditable='true'][role='textbox']"],
+      "assistant_selectors": ["[data-role='assistant']", ".ds-markdown", ".markdown-body", ".prose"]
+    },
+    "glm": {
+      "url": "https://chat.z.ai/",
+      "model": "glm-web",
+      "input_selectors": ["textarea", "[contenteditable='true'][role='textbox']"],
+      "assistant_selectors": ["[data-role='assistant']", ".markdown-body", ".prose", "article"]
+    }
+  }
+}

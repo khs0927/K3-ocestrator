@@ -1,0 +1,23 @@
+{
+  "name": "multi-model-coding-orchestrator",
+  "type": "openai-compatible",
+  "base_url": "http://127.0.0.1:8790/v1",
+  "api_key": "YOUR_LOCAL_GATEWAY_KEY",
+  "models": [
+    {"id": "multi-agent-orchestrator", "name": "Kimi Multi-Agent Orchestrator"},
+    {"id": "k3-256k", "name": "Kimi K3 256K OAuth"},
+    {"id": "k3", "name": "Kimi K3 1M OAuth"},
+    {"id": "nvidia-deepseek-v4-flash", "name": "NVIDIA DeepSeek V4 Flash"},
+    {"id": "nvidia-deepseek-v4-pro", "name": "NVIDIA DeepSeek V4 Pro"},
+    {"id": "nvidia-glm-5.2", "name": "NVIDIA GLM-5.2"},
+    {"id": "deepseek-v4-flash", "name": "DeepSeek V4 Flash Official"},
+    {"id": "deepseek-v4-pro", "name": "DeepSeek V4 Pro Official"},
+    {"id": "zai-glm-5.2", "name": "Z.AI GLM-5.2 API"}
+  ],
+  "default_model": "multi-agent-orchestrator",
+  "metadata": {
+    "mode": "plan",
+    "role": "orchestrator",
+    "allow_fallback": true
+  }
+}

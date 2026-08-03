@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "multi-model-orchestrator": {
+      "command": "/ABSOLUTE/PATH/.venv/bin/python",
+      "args": ["-m", "app.mcp_server"],
+      "cwd": "/ABSOLUTE/PATH/multi-model-orchestrator-gateway",
+      "env": {
+        "GATEWAY_HOST": "127.0.0.1",
+        "GATEWAY_PORT": "8790",
+        "GATEWAY_API_KEY": "YOUR_LOCAL_GATEWAY_KEY"
+      }
+    }
+  }
+}

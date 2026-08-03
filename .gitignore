@@ -1,0 +1,14 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+data/
+workspace/
+config/provider-profiles.json
+config/routes.json
+config/browser-profiles.json
