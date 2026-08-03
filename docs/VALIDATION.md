@@ -5,10 +5,11 @@ Version: 0.6.0
 ## Completed in the build environment
 
 - Python source compilation: passed
-- Unit tests: 18 passed
+- Unit tests: 19 passed
 - plan/review/execute/yolo policy tests: passed
 - workspace path-boundary and symlink-resolution tests: passed
 - prompt and persistent-session invariant tests: passed
+- ACP prompt response text, stop reason, and usage metadata preservation test: passed
 - API-provider child-process environment isolation tests: passed
 - provider availability, routing, rate-limit fallback, and circuit-breaker tests: passed
 - command chaining and dangerous Git option rejection tests: passed
@@ -17,6 +18,7 @@ Version: 0.6.0
 - FastAPI gateway and optional browser server imports: passed in the build environment
 - MCP server implementation checked against the stable FastMCP stdio API
 - ACP runtime implementation checked against the stable 0.11.x client API and official Kimi Code ACP contract
+- GitHub Actions passed on Python 3.11 and Python 3.13
 
 ## Dependency verification
 
@@ -24,7 +26,7 @@ Version: 0.6.0
 - `mcp>=1.27,<2`: official MCP Python SDK v1 production line; MCP v2 pre-releases are intentionally excluded
 - `fastapi>=0.116,<1`: compatible with current 0.x releases while avoiding an unreviewed major-version transition
 
-Context7 was used to verify the current FastMCP construction, `@mcp.tool()` registration, and `mcp.run()` stdio pattern. Official PyPI/GitHub metadata was used as the source of truth for exact release ranges.
+Context7 was used to verify the current FastMCP construction, `@mcp.tool()` registration, `mcp.run()` stdio pattern, ACP subprocess spawning, session creation/resume, prompt delivery, session updates, and permission callbacks. Official package and repository metadata was used as the source of truth for exact release ranges.
 
 ## Not possible without the operator's accounts
 
