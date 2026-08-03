@@ -1,12 +1,10 @@
 name: bootstrap-source
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/multimodel-orchestrator-v1
-    paths:
-      - ".bootstrap/**"
-      - ".github/workflows/bootstrap-source.yml"
+      - main
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -19,6 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
       - name: Restore source tree
@@ -42,4 +41,4 @@ jobs:
           git add -A
           git diff --cached --quiet && exit 0
           git commit -m "feat: add K3-led multi-model orchestrator"
-          git push origin HEAD:${GITHUB_REF_NAME}
+          git push origin HEAD:${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}
