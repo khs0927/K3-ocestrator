@@ -29,6 +29,8 @@ discovery, and API_KEY_FILE direct-value precedence.
 - Python 3.13: passed
 - K3 branch head: `3572225`
 - DS2API config Secret PR: <https://github.com/khs0927/ds2api-multi-provider/pull/2>
+- DS2API local Go evidence: `go1.26.5 go test ./...` and `go vet ./...` passed;
+  its public fork currently reports no registered Actions workflows.
 
 ## Negative/live boundary evidence
 
