@@ -5,7 +5,7 @@
 Executed in the K3 worktree:
 
 ```text
-./.venv/bin/python -m pytest -q                 PASS: 28 passed
+./.venv/bin/python -m pytest -q                 PASS: 31 passed
 ./.venv/bin/python -m compileall -q app browser_bridge scripts   PASS
 python3 -m json.tool config/provider-profiles.example.json       PASS
 python3 -m json.tool config/routes.example.json                  PASS
@@ -17,16 +17,17 @@ The mock provider gate verifies DS2API `healthz`, `readyz` and exact
 `deepseek-v4-flash` discovery. The failure-injection tests cover 429 retry,
 three-attempt bounds, 503 circuit behavior, 404/410 permanent model disable,
 secret-file binding, response reasoning/tool-call metadata, upstream model
-identity, and numeric/HTTP-date `Retry-After` handling.
+identity, numeric/HTTP-date `Retry-After` handling, Kimi API exact model
+discovery, and API_KEY_FILE direct-value precedence.
 
 ## Hosted evidence
 
 - K3 PR #1: <https://github.com/khs0927/K3-ocestrator/pull/1>
-- Public Actions run: <https://github.com/khs0927/K3-ocestrator/actions/runs/31029582722>
-- PR Actions run: <https://github.com/khs0927/K3-ocestrator/actions/runs/31029586463>
+- Public Actions run: <https://github.com/khs0927/K3-ocestrator/actions/runs/31030526559>
+- PR Actions run: <https://github.com/khs0927/K3-ocestrator/actions/runs/31030533028>
 - Python 3.11: passed
 - Python 3.13: passed
-- K3 branch head: `06b618a`
+- K3 branch head: `3572225`
 - DS2API config Secret PR: <https://github.com/khs0927/ds2api-multi-provider/pull/2>
 
 ## Negative/live boundary evidence
