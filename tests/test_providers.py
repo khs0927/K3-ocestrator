@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import time
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
 from pathlib import Path
 
 from app.config import Settings
@@ -90,6 +92,8 @@ def test_retry_after_is_bounded_and_defaults_when_missing():
     assert registry.retry_after_seconds("429 Retry-After: 2.5") == 2.5
     assert registry.retry_after_seconds("429 rate limit") == 1.0
     assert registry.retry_after_seconds("Retry-After: 999") == 30.0
+    retry_at = format_datetime(datetime.now(timezone.utc) + timedelta(seconds=5), usegmt=True)
+    assert 0.0 <= registry.retry_after_seconds(f"Retry-After: {retry_at}") <= 10.0
 
 
 def test_ds2api_runtime_gate_checks_health_readiness_and_exact_model(monkeypatch):

@@ -4,6 +4,7 @@ import json
 import os
 import time
 from dataclasses import dataclass, field
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -381,12 +382,23 @@ class ProviderRegistry:
         import re
 
         match = re.search(r"retry[-_ ]?after\s*[:= ]\s*(\d+(?:\.\d+)?)", str(error), flags=re.IGNORECASE)
-        if not match:
-            return default
-        try:
-            return max(0.0, min(float(match.group(1)), 30.0))
-        except ValueError:
-            return default
+        if match:
+            try:
+                return max(0.0, min(float(match.group(1)), 30.0))
+            except ValueError:
+                return default
+        date_match = re.search(
+            r"retry[-_ ]?after\s*[:= ]\s*([A-Za-z]{3},[^\n\r]+)",
+            str(error),
+            flags=re.IGNORECASE,
+        )
+        if date_match:
+            try:
+                delay = parsedate_to_datetime(date_match.group(1)).timestamp() - time.time()
+                return max(0.0, min(delay, 30.0))
+            except (TypeError, ValueError, OverflowError):
+                return default
+        return default
 
     def record_failure(self, alias: str, error: Exception | str) -> str:
         state = self.states.setdefault(alias, ProviderRuntimeState())

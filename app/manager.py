@@ -326,6 +326,7 @@ class SessionManager:
                 model=profile.alias,
                 provider=profile.alias,
                 role=request.role,
+                upstream_model=profile.model,
                 reasoning_content="".join(runtime.thought_parts) or None,
                 tool_calls=list(runtime.tool_calls.values()),
                 events=list(runtime.events),
@@ -348,7 +349,12 @@ class SessionManager:
                 try:
                     result = await self._run_profile(request, profile, task_prompt, external_id)
                     self.registry.record_success(profile.alias)
-                    attempts.append({"provider": profile.alias, "status": "success", "elapsed": time.time() - started})
+                    attempts.append({
+                        "provider": profile.alias,
+                        "upstream_model": profile.model,
+                        "status": "success",
+                        "elapsed": time.time() - started,
+                    })
                     result.attempts = attempts
                     return result
                 except Exception as exc:
@@ -357,6 +363,7 @@ class SessionManager:
                     attempts.append(
                         {
                             "provider": profile.alias,
+                            "upstream_model": profile.model,
                             "status": "failed",
                             "error": str(exc),
                             "failure_kind": kind,
@@ -484,6 +491,7 @@ class SessionManager:
                             "stop_reason": result.stop_reason,
                             "usage": result.usage,
                             "provider": result.provider,
+                            "upstream_model": result.upstream_model,
                             "attempts": result.attempts,
                             "reasoning_content": result.reasoning_content,
                             "tool_calls": result.tool_calls,

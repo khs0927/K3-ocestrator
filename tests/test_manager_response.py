@@ -54,6 +54,7 @@ async def test_run_profile_preserves_acp_prompt_metadata(tmp_path):
     assert result.usage == {"total_tokens": 42}
     assert result.reasoning_content == "internal reasoning"
     assert result.tool_calls == [{"tool_call_id": "call-1", "title": "read"}]
+    assert result.upstream_model == "test-model"
 
 
 @pytest.mark.asyncio

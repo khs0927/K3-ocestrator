@@ -403,6 +403,7 @@ async def chat_completions(
             "usage": result.usage or {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
             "session_id": result.session_id,
             "provider": result.provider,
+            "upstream_model": result.upstream_model,
             "attempts": result.attempts,
         }
 
@@ -470,6 +471,7 @@ async def chat_completions(
                         "finish_reason": "stop",
                     }],
                     "session_id": event.payload.get("session_id"),
+                    "upstream_model": event.payload.get("upstream_model"),
                     "attempts": event.payload.get("attempts", []),
                 }
                 yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
