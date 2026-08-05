@@ -16,15 +16,17 @@ FastAPI/MCP import and provider route registration                   PASS
 The mock provider gate verifies DS2API `healthz`, `readyz` and exact
 `deepseek-v4-flash` discovery. The failure-injection tests cover 429 retry,
 three-attempt bounds, 503 circuit behavior, 404/410 permanent model disable,
-secret-file binding, and response reasoning/tool-call metadata.
+secret-file binding, response reasoning/tool-call metadata, upstream model
+identity, and numeric/HTTP-date `Retry-After` handling.
 
 ## Hosted evidence
 
 - K3 PR #1: <https://github.com/khs0927/K3-ocestrator/pull/1>
-- Public Actions run: <https://github.com/khs0927/K3-ocestrator/actions/runs/31027474201>
+- Public Actions run: <https://github.com/khs0927/K3-ocestrator/actions/runs/31029582722>
+- PR Actions run: <https://github.com/khs0927/K3-ocestrator/actions/runs/31029586463>
 - Python 3.11: passed
 - Python 3.13: passed
-- K3 branch head: `7e2fa6f`
+- K3 branch head: `06b618a`
 - DS2API config Secret PR: <https://github.com/khs0927/ds2api-multi-provider/pull/2>
 
 ## Negative/live boundary evidence
