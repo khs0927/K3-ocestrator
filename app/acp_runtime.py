@@ -366,6 +366,7 @@ class KimiAcpRuntime:
 
         blocked = {
             "NVIDIA_API_KEY", "DEEPSEEK_API_KEY", "ZAI_API_KEY",
+            "DS2API_API_KEY",
             "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "KIMI_API_KEY",
             "GATEWAY_API_KEY", "MCP_INTERNAL_API_KEY",
             "DEEPSEEK_WEB_BRIDGE_KEY", "GLM_WEB_BRIDGE_KEY",

@@ -44,6 +44,7 @@
       "model": "deepseek-ai/deepseek-v4-flash",
       "base_url": "https://integrate.api.nvidia.com/v1",
       "api_key_env": "NVIDIA_API_KEY",
+      "runtime_required": true,
       "max_context_size": 1048576,
       "capabilities": [
         "thinking"
@@ -68,6 +69,7 @@
       "model": "z-ai/glm-5.2",
       "base_url": "https://integrate.api.nvidia.com/v1",
       "api_key_env": "NVIDIA_API_KEY",
+      "runtime_required": true,
       "max_context_size": 1048576,
       "capabilities": [
         "thinking"
@@ -85,6 +87,31 @@
       "description": "Free NVIDIA NIM prototype endpoint; architecture and long-context reviewer."
     },
     {
+      "alias": "ds2api-deepseek-v4-flash",
+      "display_name": "DS2API DeepSeek V4 Flash",
+      "transport": "api",
+      "provider_type": "openai",
+      "model": "deepseek-v4-flash",
+      "base_url": "http://127.0.0.1:5001/v1",
+      "api_key_env": "DS2API_API_KEY",
+      "auth_required": false,
+      "runtime_required": true,
+      "enabled": false,
+      "max_context_size": 1048576,
+      "capabilities": [
+        "thinking"
+      ],
+      "roles": [
+        "coder",
+        "reviewer",
+        "fast",
+        "test"
+      ],
+      "priority": 50,
+      "max_concurrency": 1,
+      "description": "Opt-in DeepSeek web-session compatibility fallback; account/session login stays inside DS2API."
+    },
+    {
       "alias": "nvidia-deepseek-v4-pro",
       "display_name": "NVIDIA DeepSeek V4 Pro",
       "transport": "api",
@@ -92,6 +119,7 @@
       "model": "deepseek-ai/deepseek-v4-pro",
       "base_url": "https://integrate.api.nvidia.com/v1",
       "api_key_env": "NVIDIA_API_KEY",
+      "runtime_required": true,
       "max_context_size": 1048576,
       "capabilities": [
         "thinking"
@@ -115,6 +143,7 @@
       "model": "deepseek-v4-flash",
       "base_url": "https://api.deepseek.com",
       "api_key_env": "DEEPSEEK_API_KEY",
+      "runtime_required": true,
       "max_context_size": 1048576,
       "capabilities": [
         "thinking"
@@ -137,6 +166,7 @@
       "model": "deepseek-v4-pro",
       "base_url": "https://api.deepseek.com/anthropic",
       "api_key_env": "DEEPSEEK_API_KEY",
+      "runtime_required": true,
       "max_context_size": 1048576,
       "max_output_size": 131072,
       "capabilities": [
@@ -160,6 +190,7 @@
       "model": "glm-5.2",
       "base_url": "https://api.z.ai/api/paas/v4",
       "api_key_env": "ZAI_API_KEY",
+      "runtime_required": true,
       "max_context_size": 1048576,
       "capabilities": [
         "thinking"

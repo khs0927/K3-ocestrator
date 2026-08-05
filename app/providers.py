@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+import httpx
 from pydantic import BaseModel, Field, ValidationError
 
 
@@ -23,6 +24,9 @@ class ProviderProfile(BaseModel):
     base_url: str | None = None
     api_key_env: str | None = None
     api_key_value: str | None = Field(default=None, exclude=True, repr=False)
+    auth_required: bool = True
+    runtime_required: bool = False
+    runtime_verified: bool = False
     max_context_size: int = Field(default=262_144, ge=1)
     max_output_size: int | None = Field(default=None, ge=1)
     capabilities: list[str] = Field(default_factory=lambda: ["thinking"])
@@ -56,23 +60,28 @@ class ProviderProfile(BaseModel):
             return True
         if self.transport == "web":
             return bool(self.base_url)
-        return bool(self.base_url and self.api_key())
+        return bool(
+            self.base_url
+            and (not self.auth_required or self.api_key())
+            and (not self.runtime_required or self.runtime_verified)
+        )
 
     def kimi_environment(self, thinking: str | None = None) -> dict[str, str]:
         if self.transport != "api":
             return {}
         key = self.api_key()
-        if not key:
+        if self.auth_required and not key:
             raise RuntimeError(f"Missing {self.api_key_env} for provider profile {self.alias}")
         env = {
             "KIMI_MODEL_NAME": self.model,
             "KIMI_MODEL_DISPLAY_NAME": self.display_name,
-            "KIMI_MODEL_API_KEY": key,
             "KIMI_MODEL_PROVIDER_TYPE": self.provider_type,
             "KIMI_MODEL_MAX_CONTEXT_SIZE": str(self.max_context_size),
             "KIMI_MODEL_CAPABILITIES": ",".join(self.capabilities),
             "KIMI_MODEL_THINKING_EFFORT": thinking or self.default_thinking,
         }
+        if key:
+            env["KIMI_MODEL_API_KEY"] = key
         if self.base_url:
             env["KIMI_MODEL_BASE_URL"] = self.base_url
         if self.max_output_size:
@@ -115,6 +124,7 @@ DEFAULT_PROFILES: list[dict[str, Any]] = [
         "model": "deepseek-ai/deepseek-v4-flash",
         "base_url": "https://integrate.api.nvidia.com/v1",
         "api_key_env": "NVIDIA_API_KEY",
+        "runtime_required": True,
         "max_context_size": 1048576,
         "capabilities": ["thinking"],
         "roles": ["coder", "reviewer", "fast", "test", "researcher"],
@@ -131,6 +141,7 @@ DEFAULT_PROFILES: list[dict[str, Any]] = [
         "model": "z-ai/glm-5.2",
         "base_url": "https://integrate.api.nvidia.com/v1",
         "api_key_env": "NVIDIA_API_KEY",
+        "runtime_required": True,
         "max_context_size": 1048576,
         "capabilities": ["thinking"],
         "roles": ["planner", "architect", "reviewer", "researcher", "long_context"],
@@ -140,6 +151,24 @@ DEFAULT_PROFILES: list[dict[str, Any]] = [
         "description": "Free NVIDIA NIM prototype endpoint; architecture and long-context reviewer.",
     },
     {
+        "alias": "ds2api-deepseek-v4-flash",
+        "display_name": "DS2API DeepSeek V4 Flash",
+        "transport": "api",
+        "provider_type": "openai",
+        "model": "deepseek-v4-flash",
+        "base_url": "http://127.0.0.1:5001/v1",
+        "api_key_env": "DS2API_API_KEY",
+        "auth_required": False,
+        "runtime_required": True,
+        "enabled": False,
+        "max_context_size": 1048576,
+        "capabilities": ["thinking"],
+        "roles": ["coder", "reviewer", "fast", "test"],
+        "priority": 50,
+        "max_concurrency": 1,
+        "description": "Opt-in DeepSeek web-session compatibility fallback; account/session login stays inside DS2API.",
+    },
+    {
         "alias": "nvidia-deepseek-v4-pro",
         "display_name": "NVIDIA DeepSeek V4 Pro",
         "transport": "api",
@@ -147,6 +176,7 @@ DEFAULT_PROFILES: list[dict[str, Any]] = [
         "model": "deepseek-ai/deepseek-v4-pro",
         "base_url": "https://integrate.api.nvidia.com/v1",
         "api_key_env": "NVIDIA_API_KEY",
+        "runtime_required": True,
         "max_context_size": 1048576,
         "capabilities": ["thinking"],
         "roles": ["reviewer", "architect", "hard_reasoning", "security"],
@@ -163,6 +193,7 @@ DEFAULT_PROFILES: list[dict[str, Any]] = [
         "model": "deepseek-v4-flash",
         "base_url": "https://api.deepseek.com",
         "api_key_env": "DEEPSEEK_API_KEY",
+        "runtime_required": True,
         "max_context_size": 1048576,
         "capabilities": ["thinking"],
         "roles": ["coder", "reviewer", "fast", "test"],
@@ -178,6 +209,7 @@ DEFAULT_PROFILES: list[dict[str, Any]] = [
         "model": "deepseek-v4-pro",
         "base_url": "https://api.deepseek.com/anthropic",
         "api_key_env": "DEEPSEEK_API_KEY",
+        "runtime_required": True,
         "max_context_size": 1048576,
         "max_output_size": 131072,
         "capabilities": ["thinking"],
@@ -194,6 +226,7 @@ DEFAULT_PROFILES: list[dict[str, Any]] = [
         "model": "glm-5.2",
         "base_url": "https://api.z.ai/api/paas/v4",
         "api_key_env": "ZAI_API_KEY",
+        "runtime_required": True,
         "max_context_size": 1048576,
         "capabilities": ["thinking"],
         "roles": ["planner", "architect", "reviewer", "researcher", "long_context"],
@@ -234,11 +267,11 @@ DEFAULT_ROUTES: dict[str, list[str]] = {
     "orchestrator": ["k3-256k", "k3", "nvidia-glm-5.2", "nvidia-deepseek-v4-pro"],
     "planner": ["k3-256k", "nvidia-glm-5.2", "k3", "zai-glm-5.2", "glm-web-advisory"],
     "architect": ["nvidia-glm-5.2", "k3", "nvidia-deepseek-v4-pro", "zai-glm-5.2"],
-    "coder": ["k3-256k", "nvidia-deepseek-v4-flash", "deepseek-v4-flash", "nvidia-glm-5.2"],
+    "coder": ["k3-256k", "nvidia-deepseek-v4-flash", "ds2api-deepseek-v4-flash", "deepseek-v4-flash", "nvidia-glm-5.2"],
     "reviewer": ["nvidia-deepseek-v4-pro", "nvidia-glm-5.2", "k3-256k", "deepseek-v4-pro", "zai-glm-5.2"],
     "researcher": ["nvidia-glm-5.2", "k3", "nvidia-deepseek-v4-flash", "glm-web-advisory", "deepseek-web-advisory"],
-    "fast": ["nvidia-deepseek-v4-flash", "deepseek-v4-flash", "k3-256k"],
-    "test": ["nvidia-deepseek-v4-flash", "k3-256k", "deepseek-v4-flash"],
+    "fast": ["nvidia-deepseek-v4-flash", "ds2api-deepseek-v4-flash", "deepseek-v4-flash", "k3-256k"],
+    "test": ["nvidia-deepseek-v4-flash", "ds2api-deepseek-v4-flash", "k3-256k", "deepseek-v4-flash"],
     "security": ["nvidia-deepseek-v4-pro", "k3", "deepseek-v4-pro", "nvidia-glm-5.2"],
     "long_context": ["k3", "nvidia-glm-5.2", "nvidia-deepseek-v4-pro", "zai-glm-5.2"],
     "hard_reasoning": ["k3", "nvidia-deepseek-v4-pro", "nvidia-glm-5.2", "deepseek-v4-pro"],
@@ -254,6 +287,7 @@ class ProviderRuntimeState:
     last_started_at: float = 0.0
     total_successes: int = 0
     total_failures: int = 0
+    permanently_disabled: bool = False
 
 
 @dataclass
@@ -281,6 +315,11 @@ class ProviderRegistry:
             except (OSError, json.JSONDecodeError, ValidationError):
                 pass
         profiles = {p.alias: p for p in (ProviderProfile.model_validate(item) for item in raw_profiles)}
+        # Runtime discovery is process-local evidence; never allow a checked-in
+        # JSON file to claim that an API model was verified.
+        for profile in profiles.values():
+            if profile.transport == "api" and profile.runtime_required:
+                profile.runtime_verified = False
         routes = {key: list(value) for key, value in DEFAULT_ROUTES.items()}
         if route_file and route_file.exists():
             try:
@@ -311,7 +350,7 @@ class ProviderRegistry:
             if not profile or not profile.available():
                 continue
             state = self.states.setdefault(alias, ProviderRuntimeState())
-            if state.open_until > now:
+            if state.permanently_disabled or state.open_until > now:
                 continue
             result.append(profile)
         return result
@@ -324,14 +363,43 @@ class ProviderRegistry:
         state.last_success_at = time.time()
         state.total_successes += 1
 
-    def record_failure(self, alias: str, error: Exception | str) -> None:
+    @staticmethod
+    def classify_failure(error: Exception | str) -> str:
+        message = str(error).lower()
+        if any(token in message for token in ("401", "403", "invalid api key", "authentication", "unauthorized", "forbidden")):
+            return "auth"
+        if any(token in message for token in ("404", "410", "model not found", "not found")):
+            return "permanent"
+        if "429" in message or "rate limit" in message or "retry-after" in message:
+            return "rate_limit"
+        if any(token in message for token in ("timeout", "timed out", "capacity", "overloaded", "empty response", "empty output", "503", "502", "500", "temporarily unavailable")):
+            return "transient"
+        return "other"
+
+    @staticmethod
+    def retry_after_seconds(error: Exception | str, default: float = 1.0) -> float:
+        import re
+
+        match = re.search(r"retry[-_ ]?after\s*[:= ]\s*(\d+(?:\.\d+)?)", str(error), flags=re.IGNORECASE)
+        if not match:
+            return default
+        try:
+            return max(0.0, min(float(match.group(1)), 30.0))
+        except ValueError:
+            return default
+
+    def record_failure(self, alias: str, error: Exception | str) -> str:
         state = self.states.setdefault(alias, ProviderRuntimeState())
         state.consecutive_failures += 1
         state.total_failures += 1
         state.last_error = str(error)
-        message = str(error).lower()
-        auth_failure = any(token in message for token in ("401", "invalid api key", "authentication"))
-        capacity_failure = any(token in message for token in ("429", "rate limit", "capacity", "overloaded", "503"))
+        kind = self.classify_failure(error)
+        if kind == "permanent":
+            state.permanently_disabled = True
+            state.open_until = 0.0
+            return kind
+        auth_failure = kind == "auth"
+        capacity_failure = kind in {"rate_limit", "transient"}
         if auth_failure:
             cooldown = 900.0
         elif capacity_failure:
@@ -340,6 +408,73 @@ class ProviderRegistry:
             cooldown = min(120.0, 5.0 * state.consecutive_failures)
         if auth_failure or capacity_failure or state.consecutive_failures >= 2:
             state.open_until = time.time() + cooldown
+        return kind
+
+    def refresh(self, alias: str | None = None) -> None:
+        names = [alias] if alias else list(self.states)
+        for name in names:
+            state = self.states.setdefault(name, ProviderRuntimeState())
+            state.consecutive_failures = 0
+            state.open_until = 0.0
+            state.last_error = None
+            state.permanently_disabled = False
+
+    async def verify_runtime(self, alias: str) -> dict[str, Any]:
+        """Verify health/readiness and the exact configured model without logging secrets."""
+        profile = self.get(alias)
+        if profile.transport in {"oauth", "web"}:
+            profile.runtime_verified = True
+            return {"alias": alias, "verified": True, "reason": "non-api transport"}
+        if not profile.base_url:
+            profile.runtime_verified = False
+            return {"alias": alias, "verified": False, "reason": "missing base URL"}
+        key = profile.api_key()
+        if profile.auth_required and not key:
+            profile.runtime_verified = False
+            return {"alias": alias, "verified": False, "reason": "missing API key"}
+
+        headers = {"Accept": "application/json"}
+        if key:
+            headers["Authorization"] = f"Bearer {key}"
+        base = profile.base_url.rstrip("/")
+        checks: dict[str, Any] = {}
+        try:
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
+                if alias.startswith("ds2api-"):
+                    root = base.removesuffix("/v1")
+                    for name in ("healthz", "readyz"):
+                        response = await client.get(f"{root}/{name}", headers=headers)
+                        checks[name] = {"status": response.status_code, "ok": response.is_success}
+                        response.raise_for_status()
+                response = await client.get(f"{base}/models", headers=headers)
+                checks["models"] = {"status": response.status_code, "ok": response.is_success}
+                response.raise_for_status()
+                payload = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            profile.runtime_verified = False
+            self.record_failure(alias, str(exc))
+            return {"alias": alias, "verified": False, "checks": checks, "reason": str(exc)}
+
+        rows = payload.get("data", []) if isinstance(payload, dict) else payload
+        model_ids = {
+            str(item.get("id"))
+            for item in rows
+            if isinstance(item, dict) and item.get("id")
+        }
+        verified = profile.model in model_ids
+        profile.runtime_verified = verified
+        if verified:
+            self.record_success(alias)
+        else:
+            self.record_failure(alias, f"runtime model not found: {profile.model}")
+        return {
+            "alias": alias,
+            "model": profile.model,
+            "verified": verified,
+            "runtime_model_count": len(model_ids),
+            "checks": checks,
+            "reason": None if verified else "exact model ID was not returned by /v1/models",
+        }
 
     def status(self) -> list[dict[str, Any]]:
         now = time.time()
@@ -353,6 +488,8 @@ class ProviderRegistry:
                     "transport": profile.transport,
                     "model": profile.model,
                     "available": profile.available(),
+                    "runtime_required": profile.runtime_required,
+                    "runtime_verified": profile.runtime_verified,
                     "advisory_only": profile.advisory_only,
                     "roles": profile.roles,
                     "circuit_open": state.open_until > now,
@@ -362,6 +499,7 @@ class ProviderRegistry:
                     "last_success_at": state.last_success_at,
                     "total_successes": state.total_successes,
                     "total_failures": state.total_failures,
+                    "permanently_disabled": state.permanently_disabled,
                 }
             )
         return rows

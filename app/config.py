@@ -6,6 +6,15 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _read_secret_file(path: Path | None) -> str:
+    if path is None:
+        return ""
+    try:
+        return path.expanduser().read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeError):
+        return ""
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -23,6 +32,10 @@ class Settings(BaseSettings):
     nvidia_api_key: str = ""
     deepseek_api_key: str = ""
     zai_api_key: str = ""
+    ds2api_enabled: bool = False
+    ds2api_base_url: str = "http://127.0.0.1:5001/v1"
+    ds2api_api_key: str = ""
+    ds2api_api_key_file: Path | None = None
 
     kimi_command: str = "kimi"
     kimi_code_home: Path = Path("./data/kimi-code-home")
@@ -39,6 +52,7 @@ class Settings(BaseSettings):
     max_live_sessions: int = Field(default=8, ge=1, le=64)
     session_idle_ttl_seconds: float = 3600.0
     max_parallel_subagents: int = Field(default=6, ge=1, le=32)
+    max_route_attempts: int = Field(default=3, ge=1, le=3)
 
     allow_execute_mode: bool = True
     allow_yolo_mode: bool = False
@@ -79,6 +93,9 @@ class Settings(BaseSettings):
 
     audit_log: Path = Path("./data/audit.jsonl")
     state_file: Path = Path("./data/gateway-state.json")
+
+    def resolved_ds2api_api_key(self) -> str:
+        return self.ds2api_api_key.strip() or _read_secret_file(self.ds2api_api_key_file)
 
     def prepare(self) -> None:
         self.kimi_code_home.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,58 @@
+name: Live provider gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Provider to verify"
+        required: true
+        type: choice
+        options: [nvidia, ds2api, zai]
+        default: nvidia
+      model:
+        description: "Exact upstream model ID; leave blank for the provider default"
+        required: false
+        type: string
+      count:
+        description: "Synthetic chats; production gate requires at least 10"
+        required: true
+        type: string
+        default: "10"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: k3-live-provider-gate-${{ inputs.provider }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    environment: live-provider-gate
+    env:
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      NVIDIA_BASE_URL: ${{ vars.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1' }}
+      NVIDIA_MODEL: ${{ vars.NVIDIA_MODEL || 'deepseek-ai/deepseek-v4-flash' }}
+      DS2API_API_KEY: ${{ secrets.DS2API_API_KEY }}
+      DS2API_BASE_URL: ${{ vars.DS2API_BASE_URL || 'http://127.0.0.1:5001/v1' }}
+      DS2API_MODEL: ${{ vars.DS2API_MODEL || 'deepseek-v4-flash' }}
+      ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+      ZAI_BASE_URL: ${{ vars.ZAI_BASE_URL || 'https://api.z.ai/api/paas/v4' }}
+      ZAI_MODEL: ${{ vars.ZAI_MODEL || 'glm-5.2' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run exact-model and synthetic gate
+        shell: bash
+        env:
+          PROVIDER: ${{ inputs.provider }}
+          MODEL: ${{ inputs.model }}
+          COUNT: ${{ inputs.count }}
+        run: |
+          set -euo pipefail
+          args=("$PROVIDER" "--count" "$COUNT")
+          if [ -n "$MODEL" ]; then args+=("--model" "$MODEL"); fi
+          python scripts/live-provider-gate.py "${args[@]}"

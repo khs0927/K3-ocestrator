@@ -10,6 +10,7 @@ from typing import Any, AsyncIterator
 import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 
 from . import __version__
 from .config import settings
@@ -28,6 +29,15 @@ from .security import verify_bearer
 
 settings.prepare()
 manager = SessionManager(settings)
+
+
+class ProviderRefreshRequest(BaseModel):
+    alias: str | None = None
+
+
+class ProviderRouteRequest(BaseModel):
+    role: str = "orchestrator"
+    preferred_models: list[str] = Field(default_factory=list)
 
 
 @asynccontextmanager
@@ -115,6 +125,70 @@ async def routes(_: None = Depends(require_key)) -> dict[str, list[str]]:
     return manager.registry.routes
 
 
+def _provider_catalog() -> list[dict[str, Any]]:
+    return [
+        {
+            "alias": profile.alias,
+            "display_name": profile.display_name,
+            "transport": profile.transport,
+            "provider_type": profile.provider_type,
+            "model": profile.model,
+            "base_url": profile.base_url,
+            "auth_required": profile.auth_required,
+            "runtime_required": profile.runtime_required,
+            "runtime_verified": profile.runtime_verified,
+            "enabled": profile.enabled,
+            "roles": profile.roles,
+            "capabilities": profile.capabilities,
+            "max_context_size": profile.max_context_size,
+            "max_concurrency": profile.max_concurrency,
+            "description": profile.description,
+        }
+        for profile in manager.registry.profiles.values()
+    ]
+
+
+def _provider_route(request: ProviderRouteRequest) -> dict[str, Any]:
+    candidates = manager.registry.candidates(request.role, request.preferred_models or None)
+    return {
+        "role": request.role,
+        "preferred_models": request.preferred_models,
+        "candidates": [
+            {"alias": profile.alias, "model": profile.model, "transport": profile.transport}
+            for profile in candidates
+        ],
+    }
+
+
+@app.get("/api/provider-catalog")
+async def provider_catalog(_: None = Depends(require_key)) -> list[dict[str, Any]]:
+    return _provider_catalog()
+
+
+@app.get("/api/provider-health")
+async def provider_health(_: None = Depends(require_key)) -> list[dict[str, Any]]:
+    return manager.registry.status()
+
+
+@app.post("/api/provider-refresh")
+async def provider_refresh(request: ProviderRefreshRequest, _: None = Depends(require_key)) -> dict[str, Any]:
+    if request.alias and request.alias not in manager.registry.profiles:
+        raise HTTPException(status_code=404, detail=f"Unknown provider alias: {request.alias}")
+    manager.registry.refresh(request.alias)
+    aliases = [request.alias] if request.alias else [
+        profile.alias
+        for profile in manager.registry.profiles.values()
+        if profile.runtime_required or profile.transport == "oauth"
+    ]
+    results = [await manager.registry.verify_runtime(alias) for alias in aliases]
+    return {"results": results, "health": manager.registry.status()}
+
+
+@app.post("/api/provider-route")
+async def provider_route(request: ProviderRouteRequest, _: None = Depends(require_key)) -> dict[str, Any]:
+    return _provider_route(request)
+
+
 @app.post("/api/orchestrations")
 async def orchestrate(
     request: OrchestrationRequest,
@@ -166,6 +240,41 @@ async def consensus(
 @app.get("/internal/providers")
 async def internal_providers(_: None = Depends(require_internal_key)) -> list[dict[str, Any]]:
     return manager.registry.status()
+
+
+@app.get("/internal/provider-catalog")
+async def internal_provider_catalog(_: None = Depends(require_internal_key)) -> list[dict[str, Any]]:
+    return _provider_catalog()
+
+
+@app.get("/internal/provider-health")
+async def internal_provider_health(_: None = Depends(require_internal_key)) -> list[dict[str, Any]]:
+    return manager.registry.status()
+
+
+@app.post("/internal/provider-refresh")
+async def internal_provider_refresh(
+    request: ProviderRefreshRequest,
+    _: None = Depends(require_internal_key),
+) -> dict[str, Any]:
+    if request.alias and request.alias not in manager.registry.profiles:
+        raise HTTPException(status_code=404, detail=f"Unknown provider alias: {request.alias}")
+    manager.registry.refresh(request.alias)
+    aliases = [request.alias] if request.alias else [
+        profile.alias
+        for profile in manager.registry.profiles.values()
+        if profile.runtime_required or profile.transport == "oauth"
+    ]
+    results = [await manager.registry.verify_runtime(alias) for alias in aliases]
+    return {"results": results, "health": manager.registry.status()}
+
+
+@app.post("/internal/provider-route")
+async def internal_provider_route(
+    request: ProviderRouteRequest,
+    _: None = Depends(require_internal_key),
+) -> dict[str, Any]:
+    return _provider_route(request)
 
 
 @app.post("/internal/subagents/dispatch")
@@ -282,7 +391,12 @@ async def chat_completions(
             "choices": [
                 {
                     "index": 0,
-                    "message": {"role": "assistant", "content": result.text},
+                    "message": {
+                        "role": "assistant",
+                        "content": result.text,
+                        **({"reasoning_content": result.reasoning_content} if result.reasoning_content else {}),
+                        **({"tool_calls": result.tool_calls} if result.tool_calls else {}),
+                    },
                     "finish_reason": "stop",
                 }
             ],
@@ -309,6 +423,28 @@ async def chat_completions(
                     if delta:
                         emitted_text = True
                         yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
+            elif event.event_type is EventType.thought:
+                content = event.payload.get("content", {})
+                if isinstance(content, dict) and content.get("type") == "text":
+                    delta = str(content.get("text", ""))
+                    if delta:
+                        chunk = {
+                            "id": completion_id,
+                            "object": "chat.completion.chunk",
+                            "created": created,
+                            "model": request.model,
+                            "choices": [{"index": 0, "delta": {"reasoning_content": delta}, "finish_reason": None}],
+                        }
+                        yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
+            elif event.event_type is EventType.tool:
+                chunk = {
+                    "id": completion_id,
+                    "object": "chat.completion.chunk",
+                    "created": created,
+                    "model": request.model,
+                    "choices": [{"index": 0, "delta": {"tool_calls": [event.payload]}, "finish_reason": None}],
+                }
+                yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
             elif event.event_type is EventType.status and event.payload.get("state") == "completed":
                 final_text = str(event.payload.get("text", ""))
                 if final_text and not emitted_text:
@@ -325,7 +461,14 @@ async def chat_completions(
                     "object": "chat.completion.chunk",
                     "created": created,
                     "model": event.payload.get("provider", request.model),
-                    "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                    "choices": [{
+                        "index": 0,
+                        "delta": {
+                            **({"reasoning_content": event.payload["reasoning_content"]} if event.payload.get("reasoning_content") else {}),
+                            **({"tool_calls": event.payload["tool_calls"]} if event.payload.get("tool_calls") else {}),
+                        },
+                        "finish_reason": "stop",
+                    }],
                     "session_id": event.payload.get("session_id"),
                     "attempts": event.payload.get("attempts", []),
                 }

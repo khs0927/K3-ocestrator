@@ -1,0 +1,117 @@
+# Production-oriented provider bundle.
+# Required deployment inputs (kept outside Git):
+#   DS2API_IMAGE, DS2API_CONFIG_JSON_FILE, DS2API_ADMIN_KEY_FILE,
+#   DS2API_API_KEY_FILE, .env with Kimi/NVIDIA/Z.AI settings.
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8790:8790"
+    env_file:
+      - .env
+    environment:
+      GATEWAY_HOST: 0.0.0.0
+      GATEWAY_PORT: 8790
+      DEFAULT_WORKSPACE: /workspace
+      KIMI_CODE_HOME: /home/orchestrator/.kimi-code
+      AUDIT_LOG: /state/audit.jsonl
+      STATE_FILE: /state/gateway-state.json
+      DS2API_ENABLED: "true"
+      DS2API_BASE_URL: http://ds2api:5001/v1
+      DS2API_API_KEY_FILE: /run/secrets/ds2api_api_key
+      ALLOW_YOLO_MODE: "false"
+    depends_on:
+      ds2api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8790/health >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - ./workspace:/workspace:rw
+      - ./data/kimi-code-home:/home/orchestrator/.kimi-code:rw
+      - ./data/provider-state:/state:rw
+      - ./config:/opt/gateway/config:ro
+    secrets:
+      - ds2api_api_key
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=256m
+      - /home/orchestrator/.cache:rw,noexec,nosuid,nodev,size=512m
+
+  ds2api:
+    image: ${DS2API_IMAGE:?set DS2API_IMAGE to a pinned DS2API fork image}
+    restart: unless-stopped
+    expose:
+      - "5001"
+    environment:
+      PORT: 5001
+      DS2API_CONFIG_JSON_FILE: /run/secrets/ds2api_config_json
+      DS2API_ENV_WRITEBACK: "0"
+      DS2API_ADMIN_KEY_FILE: /run/secrets/ds2api_admin_key
+      DS2API_CONFIG_PATH: /data/config.json
+      TZ: Asia/Seoul
+      LOG_LEVEL: INFO
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/busybox", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5001/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - ./data/ds2api:/data:rw
+    secrets:
+      - ds2api_config_json
+      - ds2api_admin_key
+
+  watchdog:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    user: "10001:10001"
+    restart: unless-stopped
+    command: ["python", "scripts/watchdog.py", "--heartbeat", "/state/watchdog-heartbeat.json"]
+    env_file:
+      - .env
+    environment:
+      WATCHDOG_GATEWAY_URL: http://gateway:8790
+      DS2API_ENABLED: "true"
+      DS2API_BASE_URL: http://ds2api:5001/v1
+      WATCHDOG_HEARTBEAT: /state/watchdog-heartbeat.json
+    depends_on:
+      gateway:
+        condition: service_healthy
+      ds2api:
+        condition: service_healthy
+    volumes:
+      - ./data/provider-state:/state:rw
+
+  qa:
+    profiles: [qa]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "pytest", "-q"]
+    environment:
+      PYTHONPATH: /opt/gateway
+    volumes:
+      - .:/opt/gateway:ro
+
+secrets:
+  ds2api_config_json:
+    file: ${DS2API_CONFIG_JSON_FILE:?set DS2API_CONFIG_JSON_FILE to a root-only config secret}
+  ds2api_admin_key:
+    file: ${DS2API_ADMIN_KEY_FILE:?set DS2API_ADMIN_KEY_FILE to a root-only admin secret}
+  ds2api_api_key:
+    file: ${DS2API_API_KEY_FILE:?set DS2API_API_KEY_FILE to a root-only managed API key}

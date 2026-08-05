@@ -85,5 +85,46 @@ async def provider_status() -> str:
         return json.dumps(response.json(), ensure_ascii=False, indent=2)
 
 
+@mcp.tool()
+async def provider_catalog() -> str:
+    """Return the redacted provider catalog without credentials."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.get(f"{_base_url()}/internal/provider-catalog", headers=_headers())
+        response.raise_for_status()
+        return json.dumps(response.json(), ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+async def provider_health() -> str:
+    """Return provider health and circuit-breaker state."""
+    return await provider_status()
+
+
+@mcp.tool()
+async def provider_refresh(alias: str = "") -> str:
+    """Clear a provider circuit or permanently-disabled model state."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.post(
+            f"{_base_url()}/internal/provider-refresh",
+            headers=_headers(),
+            json={"alias": alias or None},
+        )
+        response.raise_for_status()
+        return json.dumps(response.json(), ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+async def provider_route(role: str = "orchestrator", preferred_models: list[str] | None = None) -> str:
+    """Preview the currently available route candidates for a role."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.post(
+            f"{_base_url()}/internal/provider-route",
+            headers=_headers(),
+            json={"role": role, "preferred_models": preferred_models or []},
+        )
+        response.raise_for_status()
+        return json.dumps(response.json(), ensure_ascii=False, indent=2)
+
+
 if __name__ == "__main__":
     mcp.run()

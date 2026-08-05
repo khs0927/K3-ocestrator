@@ -56,12 +56,18 @@ class SessionManager:
             "NVIDIA_API_KEY": self.settings.nvidia_api_key,
             "DEEPSEEK_API_KEY": self.settings.deepseek_api_key,
             "ZAI_API_KEY": self.settings.zai_api_key,
+            "DS2API_API_KEY": self.settings.resolved_ds2api_api_key(),
             "DEEPSEEK_WEB_BRIDGE_KEY": self.settings.deepseek_web_bridge_key,
             "GLM_WEB_BRIDGE_KEY": self.settings.glm_web_bridge_key,
         }
         for profile in self.registry.profiles.values():
             if profile.api_key_env:
                 profile.bind_api_key(secret_values.get(profile.api_key_env))
+
+        ds2api = self.registry.profiles.get("ds2api-deepseek-v4-flash")
+        if ds2api is not None:
+            ds2api.base_url = self.settings.ds2api_base_url.rstrip("/")
+            ds2api.enabled = self.settings.ds2api_enabled
 
         if not self.settings.mcp_internal_api_key.strip():
             self.settings.mcp_internal_api_key = secrets.token_urlsafe(32)
@@ -306,6 +312,8 @@ class SessionManager:
                 )
             runtime = await self._get_or_create_runtime(request, profile, external_id)
             text, stop_reason, usage = await runtime.prompt(task_prompt)
+            if not text.strip():
+                raise KimiRuntimeError(f"Provider {profile.alias} returned an empty response")
             meta = self.session_meta.get(external_id)
             if meta is not None:
                 meta["updated_at"] = time.time()
@@ -318,6 +326,8 @@ class SessionManager:
                 model=profile.alias,
                 provider=profile.alias,
                 role=request.role,
+                reasoning_content="".join(runtime.thought_parts) or None,
+                tool_calls=list(runtime.tool_calls.values()),
                 events=list(runtime.events),
                 usage=usage,
             )
@@ -327,42 +337,52 @@ class SessionManager:
         external_id = request.session_id or uuid.uuid4().hex
         attempts: list[dict[str, Any]] = []
         candidates = self._candidate_profiles(request)
+        candidates = candidates[: self.settings.max_route_attempts]
         last_error: Exception | None = None
         for index, profile in enumerate(candidates):
             if index > 0 and (request.session_id or not request.allow_fallback):
                 break
-            started = time.time()
-            try:
-                result = await self._run_profile(request, profile, task_prompt, external_id)
-                self.registry.record_success(profile.alias)
-                attempts.append({"provider": profile.alias, "status": "success", "elapsed": time.time() - started})
-                result.attempts = attempts
-                return result
-            except Exception as exc:
-                last_error = exc
-                self.registry.record_failure(profile.alias, exc)
-                attempts.append(
-                    {
-                        "provider": profile.alias,
-                        "status": "failed",
-                        "error": str(exc),
-                        "elapsed": time.time() - started,
-                    }
-                )
-                self.audit.write(
-                    "provider_attempt_failed",
-                    external_session_id=external_id,
-                    provider=profile.alias,
-                    role=request.role,
-                    error=str(exc),
-                )
-                runtime = self.runtimes.pop(external_id, None)
-                if runtime is not None:
-                    await runtime.close()
-                if request.session_id is None:
-                    self.session_meta.pop(external_id, None)
-                    self._save_state()
-                if request.session_id or not request.allow_fallback:
+            retried_rate_limit = False
+            while len(attempts) < self.settings.max_route_attempts:
+                started = time.time()
+                try:
+                    result = await self._run_profile(request, profile, task_prompt, external_id)
+                    self.registry.record_success(profile.alias)
+                    attempts.append({"provider": profile.alias, "status": "success", "elapsed": time.time() - started})
+                    result.attempts = attempts
+                    return result
+                except Exception as exc:
+                    last_error = exc
+                    kind = self.registry.record_failure(profile.alias, exc)
+                    attempts.append(
+                        {
+                            "provider": profile.alias,
+                            "status": "failed",
+                            "error": str(exc),
+                            "failure_kind": kind,
+                            "elapsed": time.time() - started,
+                        }
+                    )
+                    self.audit.write(
+                        "provider_attempt_failed",
+                        external_session_id=external_id,
+                        provider=profile.alias,
+                        role=request.role,
+                        error=str(exc),
+                        failure_kind=kind,
+                    )
+                    runtime = self.runtimes.pop(external_id, None)
+                    if runtime is not None:
+                        await runtime.close()
+                    if request.session_id is None:
+                        self.session_meta.pop(external_id, None)
+                        self._save_state()
+                    if kind == "rate_limit" and not retried_rate_limit and len(attempts) < self.settings.max_route_attempts:
+                        retried_rate_limit = True
+                        await asyncio.sleep(self.registry.retry_after_seconds(exc))
+                        continue
+                    if request.session_id or not request.allow_fallback:
+                        break
                     break
         raise KimiRuntimeError(
             f"All provider routes failed for role {request.role}: {last_error}; attempts={attempts}"
@@ -465,6 +485,8 @@ class SessionManager:
                             "usage": result.usage,
                             "provider": result.provider,
                             "attempts": result.attempts,
+                            "reasoning_content": result.reasoning_content,
+                            "tool_calls": result.tool_calls,
                         },
                     )
                 )

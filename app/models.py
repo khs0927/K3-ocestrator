@@ -69,6 +69,8 @@ class OrchestrationResult(BaseModel):
     provider: str
     role: str
     attempts: list[dict[str, Any]] = Field(default_factory=list)
+    reasoning_content: str | None = None
+    tool_calls: list[dict[str, Any]] = Field(default_factory=list)
     events: list[GatewayEvent] = Field(default_factory=list)
     usage: dict[str, Any] | None = None
 

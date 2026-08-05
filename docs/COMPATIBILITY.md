@@ -39,7 +39,8 @@ Before upgrading Kimi Code, ACP, MCP, or FastAPI, verify:
 8. MCP FastMCP stdio forwarding still works.
 9. Plan and review modes cannot edit files or execute unsafe commands.
 10. A 429/503 opens the provider circuit for new requests without switching an existing session mid-turn.
-11. Browser advisory fallbacks remain read-only and reject non-allowlisted origins.
-12. CI passes on every supported Python version before release.
+11. Provider refresh verifies health/readiness and the exact configured `/v1/models` ID before an API profile becomes available.
+12. Browser advisory fallbacks remain read-only and reject non-allowlisted origins.
+13. CI passes on every supported Python version before release.
 
 Production should pin a known-good Kimi Code release rather than auto-upgrading without this gate.

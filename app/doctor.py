@@ -36,12 +36,17 @@ def main() -> int:
         "NVIDIA_API_KEY": settings.nvidia_api_key,
         "DEEPSEEK_API_KEY": settings.deepseek_api_key,
         "ZAI_API_KEY": settings.zai_api_key,
+        "DS2API_API_KEY": settings.resolved_ds2api_api_key(),
         "DEEPSEEK_WEB_BRIDGE_KEY": settings.deepseek_web_bridge_key,
         "GLM_WEB_BRIDGE_KEY": settings.glm_web_bridge_key,
     }
     for profile in registry.profiles.values():
         if profile.api_key_env:
             profile.bind_api_key(secret_values.get(profile.api_key_env))
+    ds2api = registry.profiles.get("ds2api-deepseek-v4-flash")
+    if ds2api is not None:
+        ds2api.base_url = settings.ds2api_base_url.rstrip("/")
+        ds2api.enabled = settings.ds2api_enabled
     for alias, url in {
         "deepseek-web-advisory": settings.deepseek_web_bridge_url,
         "glm-web-advisory": settings.glm_web_bridge_url,
@@ -67,6 +72,7 @@ def main() -> int:
             "nvidia": _masked_secret_state(settings.nvidia_api_key),
             "deepseek": _masked_secret_state(settings.deepseek_api_key),
             "zai": _masked_secret_state(settings.zai_api_key),
+            "ds2api": _masked_secret_state(settings.resolved_ds2api_api_key()),
         },
         "dependencies": {
             "agent-client-protocol": _version("agent-client-protocol"),

@@ -18,6 +18,7 @@ Multi-Model Orchestrator Gateway
 Official Kimi Code coding-agent runtime
   ├─ Kimi K3 OAuth       : 메인 오케스트레이터·실제 수정
   ├─ NVIDIA DeepSeek V4  : 빠른 코딩·테스트·검토
+  ├─ DS2API DeepSeek V4  : NVIDIA 장애 시 선택적 로컬 fallback
   ├─ NVIDIA GLM-5.2      : 아키텍처·긴 문맥·검토
   ├─ DeepSeek official   : NVIDIA 한도/장애 시 저가 대체
   └─ Z.AI official API   : GLM 대체
@@ -30,12 +31,12 @@ Kimi Code는 OpenAI·Anthropic 호환 공급자와 임시 `KIMI_MODEL_*` 모델 
 ## 모델 역할과 기본 대체 순서
 
 - **오케스트레이터:** `k3-256k → k3 → NVIDIA GLM-5.2 → NVIDIA DeepSeek V4 Pro`
-- **코더/테스트:** `K3-256K → NVIDIA DeepSeek V4 Flash → DeepSeek 공식 → NVIDIA GLM-5.2`
+- **코더/테스트:** `K3-256K → NVIDIA DeepSeek V4 Flash → DS2API DeepSeek V4 Flash → DeepSeek 공식 → NVIDIA GLM-5.2`
 - **아키텍트/긴 문맥:** `NVIDIA GLM-5.2 → K3 → NVIDIA DeepSeek V4 Pro → Z.AI 공식 API`
 - **최종 검토/보안:** `NVIDIA DeepSeek V4 Pro → NVIDIA GLM-5.2 → K3 → DeepSeek 공식`
 - **웹 자문:** API 경로가 모두 실패한 경우 `plan/review/research`에만 사용
 
-NVIDIA 엔드포인트는 프로토타입·무료 우선 경로이므로 영구 가용성을 가정하지 않습니다. 429·503·용량 오류가 발생하면 공급자 서킷을 잠시 열고 다음 경로로 자동 전환합니다.
+NVIDIA 엔드포인트는 프로토타입·무료 우선 경로이므로 영구 가용성을 가정하지 않습니다. 429·503·용량 오류가 발생하면 공급자 서킷을 잠시 열고 다음 경로로 자동 전환합니다. DS2API는 기본 비활성화이며 DeepSeek 전용입니다. K3와 GLM을 DS2API 별칭으로 연결하지 않습니다.
 
 ## 1. 전체 설치
 
@@ -74,9 +75,17 @@ Set-ExecutionPolicy -Scope Process Bypass
 NVIDIA_API_KEY=nvapi-...
 DEEPSEEK_API_KEY=
 ZAI_API_KEY=
+DS2API_ENABLED=false
+DS2API_BASE_URL=http://127.0.0.1:5001/v1
+DS2API_API_KEY=
+DS2API_API_KEY_FILE=
 ```
 
 Kimi는 키나 비밀번호를 `.env`에 넣지 않습니다.
+
+DS2API의 DeepSeek 계정 비밀번호·세션은 DS2API 내부에서만 관리합니다. 게이트웨이는 `healthz`, `readyz`, `v1/models`, `v1/chat/completions` 계약만 사용합니다.
+
+VPS 배포 템플릿은 `docker-compose.providers.yml`입니다. DS2API fork 이미지와 root-only Secret 파일을 지정한 뒤 gateway·DS2API·QA·watchdog을 private Compose network로 실행합니다.
 
 ```bash
 ./scripts/login.sh
@@ -204,6 +213,10 @@ MCP 도구:
 - `dispatch_subagent`
 - `multi_model_consensus`
 - `provider_status`
+- `provider_catalog`
+- `provider_health`
+- `provider_refresh`
+- `provider_route`
 
 메인 Kimi 오케스트레이터에는 이 MCP 서버가 자동 전달되어, 작업 중 DeepSeek·GLM·Kimi 독립 검토자를 호출할 수 있습니다.
 

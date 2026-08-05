@@ -5,13 +5,13 @@ Version: 0.6.0
 ## Completed in the build environment
 
 - Python source compilation: passed
-- Unit tests: 21 passed
+- Unit tests: 27 passed
 - plan/review/execute/yolo policy tests: passed
 - workspace path-boundary and symlink-resolution tests: passed
 - prompt and persistent-session invariant tests: passed
 - ACP prompt response text, stop reason, and usage metadata preservation test: passed
 - API-provider child-process environment isolation tests: passed
-- provider availability, routing, rate-limit fallback, and circuit-breaker tests: passed
+- provider availability, exact runtime discovery, routing, rate-limit fallback, and circuit-breaker tests: passed
 - command chaining and dangerous Git option rejection tests: passed
 - one-time path-scoped file-write approval tests: passed
 - browser profile and exact-origin validation tests: passed
@@ -20,6 +20,8 @@ Version: 0.6.0
 - MCP server implementation checked against the stable FastMCP stdio API
 - ACP runtime implementation checked against the stable 0.11.x client API and official Kimi Code ACP contract
 - GitHub Actions passed on Python 3.11 and Python 3.13
+
+The deterministic suite includes a mocked DS2API gate that checks `/healthz`, `/readyz`, and `/v1/models` and refuses activation when the exact model ID is absent.
 
 ## Container baseline verification
 
