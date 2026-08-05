@@ -16,6 +16,16 @@ ProviderTransport = Literal["oauth", "api", "web"]
 ProviderProtocol = Literal["kimi", "openai", "anthropic"]
 
 
+def _read_secret_file(path: str | None) -> str | None:
+    if not path:
+        return None
+    try:
+        value = Path(path).expanduser().read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeError):
+        return None
+    return value or None
+
+
 class ProviderProfile(BaseModel):
     alias: str
     display_name: str
@@ -52,7 +62,9 @@ class ProviderProfile(BaseModel):
         if not self.api_key_env:
             return None
         value = os.getenv(self.api_key_env, "").strip()
-        return value or None
+        if value:
+            return value
+        return _read_secret_file(os.getenv(f"{self.api_key_env}_FILE", "").strip())
 
     def available(self) -> bool:
         if not self.enabled:
@@ -116,6 +128,41 @@ DEFAULT_PROFILES: list[dict[str, Any]] = [
         "priority": 20,
         "max_concurrency": 2,
         "description": "Official Kimi Code OAuth model for very large repositories and long context.",
+    },
+    {
+        "alias": "kimi-k3-api",
+        "display_name": "Kimi K3 Official API",
+        "transport": "api",
+        "provider_type": "openai",
+        "model": "kimi-k3",
+        "base_url": "https://api.moonshot.ai/v1",
+        "api_key_env": "KIMI_API_KEY",
+        "runtime_required": True,
+        "max_context_size": 1048576,
+        "capabilities": ["thinking", "tool_calls"],
+        "roles": ["orchestrator", "planner", "coder", "reviewer", "researcher", "long_context"],
+        "priority": 25,
+        "max_concurrency": 2,
+        "min_interval_seconds": 1.0,
+        "description": "Official OpenAI-compatible Kimi K3 API; opt-in through KIMI_API_KEY and exact model discovery.",
+    },
+    {
+        "alias": "kimi-k3-self-hosted",
+        "display_name": "Kimi K3 Self-hosted",
+        "transport": "api",
+        "provider_type": "openai",
+        "model": "moonshotai/Kimi-K3",
+        "base_url": "http://127.0.0.1:8000/v1",
+        "api_key_env": "K3_SELF_HOSTED_API_KEY",
+        "auth_required": False,
+        "runtime_required": True,
+        "enabled": False,
+        "max_context_size": 1048576,
+        "capabilities": ["thinking", "tool_calls", "vision"],
+        "roles": ["orchestrator", "planner", "coder", "reviewer", "researcher", "long_context"],
+        "priority": 26,
+        "max_concurrency": 1,
+        "description": "Opt-in OpenAI-compatible vLLM/SGLang endpoint; exact moonshotai/Kimi-K3 discovery is required.",
     },
     {
         "alias": "nvidia-deepseek-v4-flash",
@@ -265,17 +312,17 @@ DEFAULT_PROFILES: list[dict[str, Any]] = [
 
 
 DEFAULT_ROUTES: dict[str, list[str]] = {
-    "orchestrator": ["k3-256k", "k3", "nvidia-glm-5.2", "nvidia-deepseek-v4-pro"],
-    "planner": ["k3-256k", "nvidia-glm-5.2", "k3", "zai-glm-5.2", "glm-web-advisory"],
+    "orchestrator": ["k3-256k", "k3", "kimi-k3-api", "kimi-k3-self-hosted", "nvidia-glm-5.2", "nvidia-deepseek-v4-pro"],
+    "planner": ["k3-256k", "nvidia-glm-5.2", "k3", "kimi-k3-api", "kimi-k3-self-hosted", "zai-glm-5.2", "glm-web-advisory"],
     "architect": ["nvidia-glm-5.2", "k3", "nvidia-deepseek-v4-pro", "zai-glm-5.2"],
-    "coder": ["k3-256k", "nvidia-deepseek-v4-flash", "ds2api-deepseek-v4-flash", "deepseek-v4-flash", "nvidia-glm-5.2"],
-    "reviewer": ["nvidia-deepseek-v4-pro", "nvidia-glm-5.2", "k3-256k", "deepseek-v4-pro", "zai-glm-5.2"],
-    "researcher": ["nvidia-glm-5.2", "k3", "nvidia-deepseek-v4-flash", "glm-web-advisory", "deepseek-web-advisory"],
+    "coder": ["k3-256k", "kimi-k3-api", "kimi-k3-self-hosted", "nvidia-deepseek-v4-flash", "ds2api-deepseek-v4-flash", "deepseek-v4-flash", "nvidia-glm-5.2"],
+    "reviewer": ["nvidia-deepseek-v4-pro", "nvidia-glm-5.2", "k3-256k", "kimi-k3-api", "kimi-k3-self-hosted", "deepseek-v4-pro", "zai-glm-5.2"],
+    "researcher": ["nvidia-glm-5.2", "k3", "kimi-k3-api", "kimi-k3-self-hosted", "nvidia-deepseek-v4-flash", "glm-web-advisory", "deepseek-web-advisory"],
     "fast": ["nvidia-deepseek-v4-flash", "ds2api-deepseek-v4-flash", "deepseek-v4-flash", "k3-256k"],
     "test": ["nvidia-deepseek-v4-flash", "ds2api-deepseek-v4-flash", "k3-256k", "deepseek-v4-flash"],
-    "security": ["nvidia-deepseek-v4-pro", "k3", "deepseek-v4-pro", "nvidia-glm-5.2"],
-    "long_context": ["k3", "nvidia-glm-5.2", "nvidia-deepseek-v4-pro", "zai-glm-5.2"],
-    "hard_reasoning": ["k3", "nvidia-deepseek-v4-pro", "nvidia-glm-5.2", "deepseek-v4-pro"],
+    "security": ["nvidia-deepseek-v4-pro", "k3", "kimi-k3-api", "kimi-k3-self-hosted", "deepseek-v4-pro", "nvidia-glm-5.2"],
+    "long_context": ["k3", "kimi-k3-api", "kimi-k3-self-hosted", "nvidia-glm-5.2", "nvidia-deepseek-v4-pro", "zai-glm-5.2"],
+    "hard_reasoning": ["k3", "kimi-k3-api", "kimi-k3-self-hosted", "nvidia-deepseek-v4-pro", "nvidia-glm-5.2", "deepseek-v4-pro"],
 }
 
 

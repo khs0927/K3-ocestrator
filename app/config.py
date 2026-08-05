@@ -30,8 +30,12 @@ class Settings(BaseSettings):
 
     # API credentials are loaded from .env but are never written to logs.
     nvidia_api_key: str = ""
+    kimi_api_key: str = ""
     deepseek_api_key: str = ""
     zai_api_key: str = ""
+    k3_self_hosted_enabled: bool = False
+    k3_self_hosted_base_url: str = "http://127.0.0.1:8000/v1"
+    k3_self_hosted_api_key: str = ""
     ds2api_enabled: bool = False
     ds2api_base_url: str = "http://127.0.0.1:5001/v1"
     ds2api_api_key: str = ""

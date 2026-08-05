@@ -23,10 +23,45 @@ def test_nvidia_profiles_become_available_with_bound_key():
 
 
 def test_api_profiles_are_unavailable_without_keys(monkeypatch):
-    for name in ("NVIDIA_API_KEY", "DEEPSEEK_API_KEY", "ZAI_API_KEY", "DS2API_API_KEY"):
+    for name in (
+        "NVIDIA_API_KEY",
+        "KIMI_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "ZAI_API_KEY",
+        "DS2API_API_KEY",
+        "K3_SELF_HOSTED_API_KEY",
+    ):
         monkeypatch.delenv(name, raising=False)
     aliases = {profile.alias for profile in ProviderRegistry.load().available_profiles()}
     assert aliases == {"k3-256k", "k3"}
+
+
+def test_k3_api_and_self_hosted_profiles_are_explicit_and_opt_in(monkeypatch):
+    monkeypatch.delenv("KIMI_API_KEY", raising=False)
+    monkeypatch.delenv("K3_SELF_HOSTED_API_KEY", raising=False)
+    registry = ProviderRegistry.load()
+
+    api = registry.get("kimi-k3-api")
+    assert api.model == "kimi-k3"
+    assert api.base_url == "https://api.moonshot.ai/v1"
+    assert api.available() is False
+
+    self_hosted = registry.get("kimi-k3-self-hosted")
+    assert self_hosted.model == "moonshotai/Kimi-K3"
+    assert self_hosted.enabled is False
+    assert self_hosted.available() is False
+
+
+def test_provider_api_key_file_fallback_and_direct_precedence(tmp_path: Path, monkeypatch):
+    secret = tmp_path / "kimi-api-key"
+    secret.write_text("managed-kimi-key\n", encoding="utf-8")
+    monkeypatch.delenv("KIMI_API_KEY", raising=False)
+    monkeypatch.setenv("KIMI_API_KEY_FILE", str(secret))
+    profile = ProviderRegistry.load().get("kimi-k3-api")
+    assert profile.api_key() == "managed-kimi-key"
+
+    monkeypatch.setenv("KIMI_API_KEY", "direct-kimi-key")
+    assert profile.api_key() == "direct-kimi-key"
 
 
 def test_ds2api_is_opt_in_and_does_not_require_gateway_key():
@@ -132,6 +167,39 @@ def test_ds2api_runtime_gate_checks_health_readiness_and_exact_model(monkeypatch
     assert result["verified"] is True
     assert result["checks"]["healthz"]["ok"] is True
     assert result["checks"]["readyz"]["ok"] is True
+    assert profile.runtime_verified is True
+    assert profile.available() is True
+
+
+def test_kimi_k3_api_runtime_gate_requires_exact_model(monkeypatch):
+    class Response:
+        status_code = 200
+        is_success = True
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"data": [{"id": "kimi-k3"}]}
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, _url, **_kwargs):
+            return Response()
+
+    monkeypatch.setattr("app.providers.httpx.AsyncClient", lambda **_kwargs: Client())
+    registry = ProviderRegistry.load()
+    profile = registry.get("kimi-k3-api")
+    profile.bind_api_key("kimi-test-key")
+
+    result = __import__("asyncio").run(registry.verify_runtime(profile.alias))
+
+    assert result["verified"] is True
     assert profile.runtime_verified is True
     assert profile.available() is True
 

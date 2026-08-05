@@ -2,7 +2,7 @@
 
 ## Kimi K3
 
-Use official Kimi Code OAuth as the primary orchestration route. It owns long-running project context, permissions, local tools and final synthesis. `k3-256k` is the normal default; `k3` is reserved for genuinely large cross-module context.
+Use official Kimi Code OAuth as the primary orchestration route. It owns long-running project context, permissions, local tools and final synthesis. `k3-256k` is the normal default; `k3` is reserved for genuinely large cross-module context. The optional `kimi-k3-api` profile targets the official OpenAI-compatible API model `kimi-k3`, while `kimi-k3-self-hosted` targets an OpenAI-compatible vLLM/SGLang endpoint serving `moonshotai/Kimi-K3`; both require exact `/v1/models` discovery and never use DS2API credentials.
 
 ## DeepSeek
 

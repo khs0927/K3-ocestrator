@@ -37,6 +37,62 @@
       "description": "Official Kimi Code OAuth model for very large repositories and long context."
     },
     {
+      "alias": "kimi-k3-api",
+      "display_name": "Kimi K3 Official API",
+      "transport": "api",
+      "provider_type": "openai",
+      "model": "kimi-k3",
+      "base_url": "https://api.moonshot.ai/v1",
+      "api_key_env": "KIMI_API_KEY",
+      "runtime_required": true,
+      "max_context_size": 1048576,
+      "capabilities": [
+        "thinking",
+        "tool_calls"
+      ],
+      "roles": [
+        "orchestrator",
+        "planner",
+        "coder",
+        "reviewer",
+        "researcher",
+        "long_context"
+      ],
+      "priority": 25,
+      "max_concurrency": 2,
+      "min_interval_seconds": 1.0,
+      "description": "Official OpenAI-compatible Kimi K3 API; opt-in through KIMI_API_KEY and exact model discovery."
+    },
+    {
+      "alias": "kimi-k3-self-hosted",
+      "display_name": "Kimi K3 Self-hosted",
+      "transport": "api",
+      "provider_type": "openai",
+      "model": "moonshotai/Kimi-K3",
+      "base_url": "http://127.0.0.1:8000/v1",
+      "api_key_env": "K3_SELF_HOSTED_API_KEY",
+      "auth_required": false,
+      "runtime_required": true,
+      "enabled": false,
+      "max_context_size": 1048576,
+      "capabilities": [
+        "thinking",
+        "tool_calls",
+        "vision"
+      ],
+      "roles": [
+        "orchestrator",
+        "planner",
+        "coder",
+        "reviewer",
+        "researcher",
+        "long_context"
+      ],
+      "priority": 26,
+      "max_concurrency": 1,
+      "description": "Opt-in OpenAI-compatible vLLM/SGLang endpoint; exact moonshotai/Kimi-K3 discovery is required."
+    },
+    {
       "alias": "nvidia-deepseek-v4-flash",
       "display_name": "NVIDIA DeepSeek V4 Flash",
       "transport": "api",

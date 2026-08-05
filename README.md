@@ -81,7 +81,11 @@ DS2API_API_KEY=
 DS2API_API_KEY_FILE=
 ```
 
-Kimi는 키나 비밀번호를 `.env`에 넣지 않습니다.
+Kimi OAuth는 키나 비밀번호를 `.env`에 넣지 않습니다. 공식 K3 API를
+사용하는 경우에만 `KIMI_API_KEY` 또는 root-only `KIMI_API_KEY_FILE`을
+설정하고 `kimi-k3-api`를 runtime refresh로 검증합니다. 자체 호스팅 K3는
+`K3_SELF_HOSTED_ENABLED=true`와 `K3_SELF_HOSTED_BASE_URL`을 설정한 뒤
+`moonshotai/Kimi-K3` exact model discovery가 통과해야 활성화됩니다.
 
 DS2API의 DeepSeek 계정 비밀번호·세션은 DS2API 내부에서만 관리합니다. 게이트웨이는 `healthz`, `readyz`, `v1/models`, `v1/chat/completions` 계약만 사용합니다.
 

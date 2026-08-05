@@ -54,8 +54,10 @@ class SessionManager:
     def _apply_runtime_overrides(self) -> None:
         secret_values = {
             "NVIDIA_API_KEY": self.settings.nvidia_api_key,
+            "KIMI_API_KEY": self.settings.kimi_api_key,
             "DEEPSEEK_API_KEY": self.settings.deepseek_api_key,
             "ZAI_API_KEY": self.settings.zai_api_key,
+            "K3_SELF_HOSTED_API_KEY": self.settings.k3_self_hosted_api_key,
             "DS2API_API_KEY": self.settings.resolved_ds2api_api_key(),
             "DEEPSEEK_WEB_BRIDGE_KEY": self.settings.deepseek_web_bridge_key,
             "GLM_WEB_BRIDGE_KEY": self.settings.glm_web_bridge_key,
@@ -68,6 +70,11 @@ class SessionManager:
         if ds2api is not None:
             ds2api.base_url = self.settings.ds2api_base_url.rstrip("/")
             ds2api.enabled = self.settings.ds2api_enabled
+
+        self_hosted = self.registry.profiles.get("kimi-k3-self-hosted")
+        if self_hosted is not None:
+            self_hosted.base_url = self.settings.k3_self_hosted_base_url.rstrip("/")
+            self_hosted.enabled = self.settings.k3_self_hosted_enabled
 
         if not self.settings.mcp_internal_api_key.strip():
             self.settings.mcp_internal_api_key = secrets.token_urlsafe(32)

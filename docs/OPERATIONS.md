@@ -9,6 +9,20 @@
 5. Start the gateway.
 6. Send a `plan` request before enabling real changes.
 
+### K3 API and self-hosted alternatives
+
+The default K3 route is Kimi Code OAuth. If OAuth is unavailable, the gateway
+can use the official OpenAI-compatible `kimi-k3` API with `KIMI_API_KEY` or a
+root-only `KIMI_API_KEY_FILE`. The API profile is not available until
+`provider-refresh` confirms the exact configured model.
+
+For a self-hosted K3 server, set `K3_SELF_HOSTED_ENABLED=true` and point
+`K3_SELF_HOSTED_BASE_URL` at the OpenAI-compatible vLLM/SGLang `/v1` endpoint.
+The endpoint must advertise the exact `moonshotai/Kimi-K3` model. An API key,
+when required by the server, may be supplied with `K3_SELF_HOSTED_API_KEY` or
+`K3_SELF_HOSTED_API_KEY_FILE`. No DS2API account material is reused for either
+K3 path.
+
 ### DS2API DeepSeek fallback
 
 DS2API must be started and logged in separately. The gateway expects these local OpenAI-compatible endpoints:
