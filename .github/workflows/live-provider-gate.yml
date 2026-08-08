@@ -7,7 +7,7 @@ on:
         description: "Provider to verify"
         required: true
         type: choice
-        options: [nvidia, ds2api, zai]
+        options: [kimi, nvidia, ds2api, zai]
         default: nvidia
       model:
         description: "Exact upstream model ID; leave blank for the provider default"
@@ -31,6 +31,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: live-provider-gate
     env:
+      KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+      KIMI_BASE_URL: ${{ vars.KIMI_BASE_URL || 'https://api.moonshot.ai/v1' }}
+      KIMI_MODEL: ${{ vars.KIMI_MODEL || 'kimi-k3' }}
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
       NVIDIA_BASE_URL: ${{ vars.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1' }}
       NVIDIA_MODEL: ${{ vars.NVIDIA_MODEL || 'deepseek-ai/deepseek-v4-flash' }}

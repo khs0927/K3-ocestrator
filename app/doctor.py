@@ -29,13 +29,20 @@ def _masked_secret_state(value: str) -> str:
     return "configured"
 
 
+def _profile_secret_state(registry: ProviderRegistry, alias: str, fallback: str = "") -> str:
+    profile = registry.profiles.get(alias)
+    return _masked_secret_state(profile.api_key() if profile is not None else fallback)
+
+
 def main() -> int:
     settings.prepare()
     registry = ProviderRegistry.load(settings.provider_profiles_file, settings.routing_file)
     secret_values = {
         "NVIDIA_API_KEY": settings.nvidia_api_key,
+        "KIMI_API_KEY": settings.kimi_api_key,
         "DEEPSEEK_API_KEY": settings.deepseek_api_key,
         "ZAI_API_KEY": settings.zai_api_key,
+        "K3_SELF_HOSTED_API_KEY": settings.k3_self_hosted_api_key,
         "DS2API_API_KEY": settings.resolved_ds2api_api_key(),
         "DEEPSEEK_WEB_BRIDGE_KEY": settings.deepseek_web_bridge_key,
         "GLM_WEB_BRIDGE_KEY": settings.glm_web_bridge_key,
@@ -69,10 +76,12 @@ def main() -> int:
             "api_key": _masked_secret_state(settings.gateway_api_key),
         },
         "provider_credentials": {
-            "nvidia": _masked_secret_state(settings.nvidia_api_key),
-            "deepseek": _masked_secret_state(settings.deepseek_api_key),
-            "zai": _masked_secret_state(settings.zai_api_key),
-            "ds2api": _masked_secret_state(settings.resolved_ds2api_api_key()),
+            "kimi": _profile_secret_state(registry, "kimi-k3-api", settings.kimi_api_key),
+            "nvidia": _profile_secret_state(registry, "nvidia-glm-5.2", settings.nvidia_api_key),
+            "deepseek": _profile_secret_state(registry, "deepseek-v4-flash", settings.deepseek_api_key),
+            "zai": _profile_secret_state(registry, "zai-glm-5.2", settings.zai_api_key),
+            "k3_self_hosted": _profile_secret_state(registry, "kimi-k3-self-hosted", settings.k3_self_hosted_api_key),
+            "ds2api": _profile_secret_state(registry, "ds2api-deepseek-v4-flash", settings.resolved_ds2api_api_key()),
         },
         "dependencies": {
             "agent-client-protocol": _version("agent-client-protocol"),

@@ -23,6 +23,10 @@ when required by the server, may be supplied with `K3_SELF_HOSTED_API_KEY` or
 `K3_SELF_HOSTED_API_KEY_FILE`. No DS2API account material is reused for either
 K3 path.
 
+The manual GitHub workflow also supports `kimi`; choose `kimi` with
+`KIMI_API_KEY` configured in the `live-provider-gate` environment to run the
+same exact-model and bounded synthetic-chat gate against the official API.
+
 ### DS2API DeepSeek fallback
 
 DS2API must be started and logged in separately. The gateway expects these local OpenAI-compatible endpoints:

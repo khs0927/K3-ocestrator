@@ -11,6 +11,7 @@ import urllib.request
 
 
 DEFAULTS = {
+    "kimi": ("https://api.moonshot.ai/v1", "kimi-k3", "KIMI_API_KEY"),
     "nvidia": ("https://integrate.api.nvidia.com/v1", "deepseek-ai/deepseek-v4-flash", "NVIDIA_API_KEY"),
     "ds2api": ("http://127.0.0.1:5001/v1", "deepseek-v4-flash", "DS2API_API_KEY"),
     "zai": ("https://api.z.ai/api/paas/v4", "glm-5.2", "ZAI_API_KEY"),
