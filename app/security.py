@@ -30,6 +30,9 @@ _SENSITIVE_TEXT_PATTERNS = (
     (re.compile(r"\bnvapi-[A-Za-z0-9_-]+"), "[REDACTED_API_KEY]"),
     (re.compile(r"\bsk-[A-Za-z0-9_-]+"), "[REDACTED_API_KEY]"),
 )
+_SENSITIVE_PAYLOAD_KEYS = re.compile(
+    r"(?i)^(?:authorization|x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|secret|jwt[_-]?secret|cookie)$"
+)
 
 
 def redact_text(value: str) -> str:
@@ -45,7 +48,13 @@ def redact_payload(value: Any) -> Any:
     if isinstance(value, str):
         return redact_text(value)
     if isinstance(value, dict):
-        return {key: redact_payload(item) for key, item in value.items()}
+        redacted: dict[Any, Any] = {}
+        for key, item in value.items():
+            if _SENSITIVE_PAYLOAD_KEYS.fullmatch(str(key).strip()):
+                redacted[key] = "[REDACTED]"
+            else:
+                redacted[key] = redact_payload(item)
+        return redacted
     if isinstance(value, list):
         return [redact_payload(item) for item in value]
     if isinstance(value, tuple):

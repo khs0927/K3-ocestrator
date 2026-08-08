@@ -3,7 +3,7 @@
 ## Startup sequence
 
 1. Run setup/bootstrap.
-2. Enter API keys in `.env`.
+2. Provision provider keys through root-only files or Docker Secrets; keep direct values in `.env` blank in production.
 3. Run `kimi login` through `scripts/login.*`.
 4. Run `scripts/doctor.*` and inspect available providers.
 5. Start the gateway.
@@ -57,9 +57,29 @@ curl -X POST http://127.0.0.1:8790/api/provider-refresh \
 
 The response must report `verified: true` and the expected `deepseek-v4-flash` model. NVIDIA GLM similarly requires `z-ai/glm-5.2` to appear in the authenticated NVIDIA `/v1/models` response; no GLM model downgrade is performed.
 
+### Root-only Secret preparation on Ubuntu VPS
+
+Create the deployment directory and verify its ownership before placing values
+through the VPS Secret manager or an interactive root-only editor. Do not put
+passwords in shell history or commit them:
+
+```bash
+sudo install -d -o root -g root -m 700 /etc/k3-secrets
+for name in gateway-api-key ds2api-config.json ds2api-admin-key ds2api-jwt-secret ds2api-api-key; do
+  sudo install -o root -g root -m 600 /dev/null "/etc/k3-secrets/$name"
+done
+sudo stat -c '%U:%G %a %n' /etc/k3-secrets/*
+```
+
+The value in `ds2api-api-key` must exactly match one entry in the DS2API
+config JSON Secret's `keys` array; it is the gateway-managed bearer key, not
+the DeepSeek account password. The config Secret contains the account/session
+material and is mounted only into DS2API. Provider API keys may use the
+corresponding `*_API_KEY_FILE` settings and must remain outside Git.
+
 ## Docker Compose provider bundle
 
-`docker-compose.providers.yml` keeps the gateway, DS2API, QA runner and watchdog on a private Compose network. The gateway and DS2API are exposed only through loopback; the DS2API admin surface is not published. Before starting it, provide a pinned DS2API fork image and root-only secret files for both services:
+`docker-compose.providers.yml` keeps the gateway, DS2API, QA runner and watchdog on a private Compose network. The gateway and DS2API are exposed only through loopback; the DS2API admin surface is not published. Use an image built from the `ds2api-multi-provider` Secret-file branch (or a later reviewed commit); the public upstream `latest` image does not understand the `_FILE` variables used here. Before starting it, provide a pinned DS2API fork image and root-only secret files for both services:
 
 ```bash
 export DS2API_IMAGE=ghcr.io/your-org/ds2api-multi-provider:pinned-sha
@@ -74,22 +94,27 @@ docker compose -f docker-compose.providers.yml --profile qa run --rm qa
 
 The config secret is owned by DS2API and contains the DeepSeek account material; it is never mounted into the K3 gateway. The gateway receives only the DS2API managed API key from its separate secret file. The watchdog writes a redacted heartbeat every 30 seconds and exits on a failed check so its own `restart: unless-stopped` policy can recycle it. Docker does not restart a container merely because it is `unhealthy`, so install the host-level recovery helper below for the gateway.
 
-Run the recovery helper from a root-only systemd timer or cron entry on the VPS:
+Install the included root-only systemd template for both gateway and DS2API
+on the VPS:
 
 ```bash
-COMPOSE_ENV_FILE=/etc/k3-secrets/provider.env \
-RECOVERY_STATE_FILE=/var/lib/k3-orchestrator/gateway-recovery.last \
-/opt/k3-ocestrator/scripts/compose-health-recover.sh
+sudo install -d -o root -g root -m 700 /var/lib/k3-orchestrator
+sudo cp deploy/k3-orchestrator-health-recover@.service /etc/systemd/system/
+sudo cp deploy/k3-orchestrator-health-recover@.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now k3-orchestrator-health-recover@gateway.timer
+sudo systemctl enable --now k3-orchestrator-health-recover@ds2api.timer
 ```
 
-It only restarts the named `gateway` service for `unhealthy`, `exited` or
+The helper restarts the named Compose service for `unhealthy`, `exited` or
 `dead` state, uses a five-minute cooldown, and never prints Secret contents.
 The persisted `/state/gateway-state.json` and Kimi session volume allow the
 gateway to resume the session checkpoint after the container is restarted.
 
 ## Daily checks
 
-- `GET /health`
+- `GET /health` (process liveness)
+- `GET /ready` (gateway readiness; requires Kimi Code and at least one available provider)
 - `GET /api/providers`
 - inspect `data/audit.jsonl`
 - verify workspace allowlist

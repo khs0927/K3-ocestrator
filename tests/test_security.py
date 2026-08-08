@@ -37,13 +37,21 @@ def test_redact_text_removes_credentials_from_errors() -> None:
 
 
 def test_redact_payload_and_audit_logger_do_not_persist_credentials(tmp_path: Path) -> None:
-    payload = {"error": "Bearer secret-token", "nested": ["password=secret-password"]}
+    payload = {
+        "error": "Bearer secret-token",
+        "api_key": "raw-api-key",
+        "nested": ["password=secret-password", {"token": "raw-token"}],
+    }
     redacted = redact_payload(payload)
     assert "secret-token" not in str(redacted)
     assert "secret-password" not in str(redacted)
+    assert "raw-api-key" not in str(redacted)
+    assert "raw-token" not in str(redacted)
 
     audit = AuditLogger(tmp_path / "audit.jsonl")
     audit.write("provider_failure", **payload)
     content = (tmp_path / "audit.jsonl").read_text(encoding="utf-8")
     assert "secret-token" not in content
     assert "secret-password" not in content
+    assert "raw-api-key" not in content
+    assert "raw-token" not in content

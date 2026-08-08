@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime
 from pathlib import Path
+from types import SimpleNamespace
+
+import httpx
 
 from app.config import Settings
 from app.manager import SessionManager
-from app.providers import ProviderRegistry
+from app.providers import ProviderProfile, ProviderRegistry
 
 
 def test_nvidia_profiles_become_available_with_bound_key():
@@ -80,6 +84,19 @@ def test_ds2api_is_opt_in_and_does_not_require_gateway_key():
     assert "KIMI_MODEL_API_KEY" not in env
 
 
+def test_ds2api_profile_cannot_be_reconfigured_as_k3_or_glm(tmp_path: Path):
+    profiles = tmp_path / "profiles.json"
+    profiles.write_text(
+        '[{"alias":"ds2api-deepseek-v4-flash","model":"kimi-k3","enabled":true}]',
+        encoding="utf-8",
+    )
+    registry = ProviderRegistry.load(profiles)
+    profile = registry.get("ds2api-deepseek-v4-flash")
+    assert profile.enabled is False
+    assert profile.runtime_verified is False
+    assert "restricted to deepseek-v4-flash" in profile.description
+
+
 def test_deepseek_route_places_ds2api_after_nvidia():
     route = ProviderRegistry.load().routes["coder"]
     assert route.index("ds2api-deepseek-v4-flash") == route.index("nvidia-deepseek-v4-flash") + 1
@@ -103,7 +120,7 @@ def test_rate_limit_failures_open_circuit():
     profile.bind_api_key("nv-test")
     profile.runtime_verified = True
     registry.record_failure("nvidia-glm-5.2", "429 rate limit")
-    assert registry.states["nvidia-glm-5.2"].open_until > time.time()
+    assert registry.state_for("nvidia-glm-5.2").open_until > time.time()
     assert "nvidia-glm-5.2" not in {p.alias for p in registry.candidates("planner")}
 
 
@@ -114,11 +131,11 @@ def test_failure_classification_disables_only_missing_model_until_refresh():
     profile.runtime_verified = True
 
     assert registry.record_failure(profile.alias, "HTTP 404 model not found") == "permanent"
-    assert registry.states[profile.alias].permanently_disabled is True
+    assert registry.state_for(profile.alias).permanently_disabled is True
     assert profile.alias not in {item.alias for item in registry.candidates("planner")}
 
     registry.refresh(profile.alias)
-    assert registry.states[profile.alias].permanently_disabled is False
+    assert registry.state_for(profile.alias).permanently_disabled is False
     assert profile.alias in {item.alias for item in registry.candidates("planner")}
 
 
@@ -129,6 +146,50 @@ def test_retry_after_is_bounded_and_defaults_when_missing():
     assert registry.retry_after_seconds("Retry-After: 999") == 30.0
     retry_at = format_datetime(datetime.now(timezone.utc) + timedelta(seconds=5), usegmt=True)
     assert 0.0 <= registry.retry_after_seconds(f"Retry-After: {retry_at}") <= 10.0
+
+
+def test_timeout_and_all_http_5xx_failures_are_transient():
+    registry = ProviderRegistry.load()
+    assert registry.classify_failure(asyncio.TimeoutError()) == "transient"
+    assert registry.classify_failure(SimpleNamespace(response=SimpleNamespace(status_code=599))) == "transient"
+
+
+def test_retry_after_reads_http_response_header():
+    response = httpx.Response(
+        429,
+        headers={"Retry-After": "7"},
+        request=httpx.Request("GET", "https://provider.invalid/models"),
+    )
+    error = httpx.HTTPStatusError("rate limited", request=response.request, response=response)
+    assert ProviderRegistry.retry_after_seconds(error) == 7.0
+
+
+def test_circuit_state_is_shared_by_provider_model_health_key():
+    registry = ProviderRegistry.load()
+    original = registry.get("nvidia-deepseek-v4-flash")
+    original.bind_api_key("nv-test")
+    original.runtime_verified = True
+    clone = ProviderProfile(
+        alias="nvidia-flash-alias",
+        display_name="NVIDIA Flash Alias",
+        transport=original.transport,
+        provider_type=original.provider_type,
+        model=original.model,
+        base_url=original.base_url,
+        api_key_env=original.api_key_env,
+        runtime_required=True,
+        roles=["fast"],
+    )
+    clone.bind_api_key("nv-test")
+    clone.runtime_verified = True
+    registry.profiles[clone.alias] = clone
+    registry.routes["fast"] = [original.alias, clone.alias]
+
+    assert original.health_key() == clone.health_key()
+    assert [item.alias for item in registry.candidates("fast")] == [original.alias]
+    registry.record_failure(original.alias, "503 overloaded")
+    assert registry.state_for(clone.alias) is registry.state_for(original.alias)
+    assert {item.alias for item in registry.candidates("fast")} == set()
 
 
 def test_ds2api_runtime_gate_checks_health_readiness_and_exact_model(monkeypatch):

@@ -40,7 +40,7 @@ services:
         - >-
           key="$${GATEWAY_API_KEY}";
           if [ -z "$${key}" ] && [ -r "$${GATEWAY_API_KEY_FILE}" ]; then key="$$(cat "$${GATEWAY_API_KEY_FILE}")"; fi;
-          curl -fsS -H "Authorization: Bearer $${key}" http://127.0.0.1:8790/health >/dev/null
+          curl -fsS -H "Authorization: Bearer $${key}" http://127.0.0.1:8790/ready >/dev/null
       interval: 30s
       timeout: 5s
       retries: 3
@@ -72,7 +72,13 @@ services:
       TZ: Asia/Seoul
       LOG_LEVEL: INFO
     healthcheck:
-      test: ["CMD", "/usr/local/bin/busybox", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5001/healthz"]
+      test:
+        - CMD-SHELL
+        - >-
+          /usr/local/bin/busybox wget -q -O /dev/null http://127.0.0.1:5001/healthz &&
+          /usr/local/bin/busybox wget -q -O /dev/null http://127.0.0.1:5001/readyz &&
+          models="$$(/usr/local/bin/busybox wget -q -O - http://127.0.0.1:5001/v1/models)" &&
+          echo "$${models}" | /usr/local/bin/busybox grep -q 'deepseek-v4-flash'
       interval: 30s
       timeout: 5s
       retries: 5

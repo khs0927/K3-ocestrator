@@ -31,7 +31,7 @@ Kimi Code는 OpenAI·Anthropic 호환 공급자와 임시 `KIMI_MODEL_*` 모델 
 ## 모델 역할과 기본 대체 순서
 
 - **오케스트레이터:** `k3-256k → k3 → NVIDIA GLM-5.2 → NVIDIA DeepSeek V4 Pro`
-- **코더/테스트:** `K3-256K → NVIDIA DeepSeek V4 Flash → DS2API DeepSeek V4 Flash → DeepSeek 공식 → NVIDIA GLM-5.2`
+- **코더/테스트:** `K3-256K → Kimi K3 API/self-hosted → NVIDIA DeepSeek V4 Flash → DS2API DeepSeek V4 Flash → DeepSeek 공식 → NVIDIA GLM-5.2`
 - **아키텍트/긴 문맥:** `NVIDIA GLM-5.2 → K3 → NVIDIA DeepSeek V4 Pro → Z.AI 공식 API`
 - **최종 검토/보안:** `NVIDIA DeepSeek V4 Pro → NVIDIA GLM-5.2 → K3 → DeepSeek 공식`
 - **웹 자문:** API 경로가 모두 실패한 경우 `plan/review/research`에만 사용

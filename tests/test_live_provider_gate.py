@@ -57,7 +57,7 @@ def test_live_gate_fails_closed_on_exact_model_mismatch(monkeypatch, capsys) -> 
 
     monkeypatch.setattr(gate, "request_json", fake_request_json)
     monkeypatch.setenv("DS2API_BASE_URL", "http://mock-ds2api:5001/v1")
-    monkeypatch.setattr(sys, "argv", ["live-provider-gate.py", "ds2api", "--model", "wrong-model", "--count", "1"])
+    monkeypatch.setattr(sys, "argv", ["live-provider-gate.py", "ds2api", "--model", "wrong-model", "--count", "10"])
 
     assert gate.main() == 1
     payload = json.loads(capsys.readouterr().out)

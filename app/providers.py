@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlparse
 
 import httpx
 from pydantic import BaseModel, Field, ValidationError
@@ -33,6 +36,7 @@ class ProviderProfile(BaseModel):
     display_name: str
     transport: ProviderTransport = "api"
     provider_type: ProviderProtocol = "openai"
+    provider_id: str | None = None
     model: str
     base_url: str | None = None
     api_key_env: str | None = None
@@ -67,6 +71,14 @@ class ProviderProfile(BaseModel):
         if value:
             return value
         return _read_secret_file(os.getenv(f"{self.api_key_env}_FILE", "").strip())
+
+    def health_key(self) -> str:
+        provider = self.provider_id
+        if not provider and self.base_url:
+            parsed = urlparse(self.base_url)
+            provider = parsed.netloc or parsed.path
+        provider = provider or self.transport
+        return f"{provider}:{self.model}"
 
     def available(self) -> bool:
         if not self.enabled:
@@ -205,6 +217,7 @@ DEFAULT_PROFILES: list[dict[str, Any]] = [
         "display_name": "DS2API DeepSeek V4 Flash",
         "transport": "api",
         "provider_type": "openai",
+        "provider_id": "ds2api",
         "model": "deepseek-v4-flash",
         "base_url": "http://127.0.0.1:5001/v1",
         "api_key_env": "DS2API_API_KEY",
@@ -365,6 +378,17 @@ class ProviderRegistry:
             except (OSError, json.JSONDecodeError, ValidationError):
                 pass
         profiles = {p.alias: p for p in (ProviderProfile.model_validate(item) for item in raw_profiles)}
+        for profile in profiles.values():
+            if (
+                profile.provider_id == "ds2api"
+                or profile.alias.startswith("ds2api-")
+                or (profile.base_url and urlparse(profile.base_url).netloc.endswith(":5001"))
+            ) and profile.model != "deepseek-v4-flash":
+                profile.enabled = False
+                profile.runtime_verified = False
+                profile.description = (
+                    f"{profile.description} Disabled: DS2API profiles are restricted to deepseek-v4-flash."
+                ).strip()
         # Runtime discovery is process-local evidence; never allow a checked-in
         # JSON file to claim that an API model was verified.
         for profile in profiles.values():
@@ -380,7 +404,11 @@ class ProviderRegistry:
                             routes[str(key)] = [str(item) for item in value]
             except (OSError, json.JSONDecodeError):
                 pass
-        return cls(profiles=profiles, routes=routes, states={alias: ProviderRuntimeState() for alias in profiles})
+        return cls(
+            profiles=profiles,
+            routes=routes,
+            states={profile.health_key(): ProviderRuntimeState() for profile in profiles.values()},
+        )
 
     def get(self, alias: str) -> ProviderProfile:
         try:
@@ -391,17 +419,25 @@ class ProviderRegistry:
     def available_profiles(self) -> list[ProviderProfile]:
         return [profile for profile in self.profiles.values() if profile.available()]
 
+    def state_for(self, alias: str) -> ProviderRuntimeState:
+        profile = self.get(alias)
+        return self.states.setdefault(profile.health_key(), ProviderRuntimeState())
+
     def candidates(self, role: str, preferred: list[str] | None = None) -> list[ProviderProfile]:
         aliases = preferred or self.routes.get(role) or self.routes["orchestrator"]
         result: list[ProviderProfile] = []
+        seen_health_keys: set[str] = set()
         now = time.time()
         for alias in aliases:
             profile = self.profiles.get(alias)
             if not profile or not profile.available():
                 continue
-            state = self.states.setdefault(alias, ProviderRuntimeState())
+            if profile.health_key() in seen_health_keys:
+                continue
+            state = self.state_for(profile.alias)
             if state.permanently_disabled or state.open_until > now:
                 continue
+            seen_health_keys.add(profile.health_key())
             result.append(profile)
         return result
 
@@ -415,6 +451,17 @@ class ProviderRegistry:
 
     @staticmethod
     def classify_failure(error: Exception | str) -> str:
+        status_code = getattr(getattr(error, "response", None), "status_code", None)
+        if status_code in {401, 403}:
+            return "auth"
+        if status_code in {404, 410}:
+            return "permanent"
+        if status_code == 429:
+            return "rate_limit"
+        if isinstance(error, (TimeoutError, asyncio.TimeoutError, httpx.TimeoutException)):
+            return "transient"
+        if isinstance(status_code, int) and 500 <= status_code <= 599:
+            return "transient"
         message = str(error).lower()
         if any(token in message for token in ("401", "403", "invalid api key", "authentication", "unauthorized", "forbidden")):
             return "auth"
@@ -422,20 +469,22 @@ class ProviderRegistry:
             return "permanent"
         if "429" in message or "rate limit" in message or "retry-after" in message:
             return "rate_limit"
-        if any(token in message for token in ("timeout", "timed out", "capacity", "overloaded", "empty response", "empty output", "503", "502", "500", "temporarily unavailable")):
+        if any(token in message for token in ("timeout", "timed out", "capacity", "overloaded", "empty response", "empty output", "temporarily unavailable")) or re.search(r"\b5\d{2}\b", message):
             return "transient"
         return "other"
 
     @staticmethod
     def retry_after_seconds(error: Exception | str, default: float = 1.0) -> float:
-        import re
+        response = getattr(error, "response", None)
+        headers = getattr(response, "headers", None)
+        if headers is not None:
+            header_value = headers.get("Retry-After")
+            if header_value:
+                return ProviderRegistry._parse_retry_after_value(str(header_value), default)
 
         match = re.search(r"retry[-_ ]?after\s*[:= ]\s*(\d+(?:\.\d+)?)", str(error), flags=re.IGNORECASE)
         if match:
-            try:
-                return max(0.0, min(float(match.group(1)), 30.0))
-            except ValueError:
-                return default
+            return ProviderRegistry._parse_retry_after_value(match.group(1), default)
         date_match = re.search(
             r"retry[-_ ]?after\s*[:= ]\s*([A-Za-z]{3},[^\n\r]+)",
             str(error),
@@ -449,8 +498,19 @@ class ProviderRegistry:
                 return default
         return default
 
+    @staticmethod
+    def _parse_retry_after_value(value: str, default: float) -> float:
+        try:
+            return max(0.0, min(float(value), 30.0))
+        except ValueError:
+            try:
+                delay = parsedate_to_datetime(value).timestamp() - time.time()
+                return max(0.0, min(delay, 30.0))
+            except (TypeError, ValueError, OverflowError):
+                return default
+
     def record_failure(self, alias: str, error: Exception | str) -> str:
-        state = self.states.setdefault(alias, ProviderRuntimeState())
+        state = self.state_for(alias)
         state.consecutive_failures += 1
         state.total_failures += 1
         state.last_error = redact_text(str(error))
@@ -472,9 +532,9 @@ class ProviderRegistry:
         return kind
 
     def refresh(self, alias: str | None = None) -> None:
-        names = [alias] if alias else list(self.states)
+        names = [alias] if alias else list(self.profiles)
         for name in names:
-            state = self.states.setdefault(name, ProviderRuntimeState())
+            state = self.state_for(name)
             state.consecutive_failures = 0
             state.open_until = 0.0
             state.last_error = None
@@ -541,13 +601,14 @@ class ProviderRegistry:
         now = time.time()
         rows: list[dict[str, Any]] = []
         for alias, profile in self.profiles.items():
-            state = self.states.setdefault(alias, ProviderRuntimeState())
+            state = self.state_for(alias)
             rows.append(
                 {
                     "alias": alias,
                     "display_name": profile.display_name,
                     "transport": profile.transport,
                     "model": profile.model,
+                    "health_key": profile.health_key(),
                     "available": profile.available(),
                     "runtime_required": profile.runtime_required,
                     "runtime_verified": profile.runtime_verified,

@@ -139,6 +139,9 @@ class SessionManager:
                 raise KimiRuntimeError(
                     f"Provider {profile.alias} is not available; configure {profile.api_key_env or 'its login'}"
                 )
+            state = self.registry.state_for(profile.alias)
+            if state.permanently_disabled or state.open_until > time.time():
+                raise KimiRuntimeError(f"Provider {profile.alias} circuit is open")
             if request.allow_fallback:
                 tail = self.registry.candidates(request.role, request.preferred_models or None)
                 # DeepSeek Flash has a provider-specific emergency path. Keep it
@@ -146,11 +149,11 @@ class SessionManager:
                 # the `fast`/`coder` role and use the default orchestrator role.
                 if profile.alias == "nvidia-deepseek-v4-flash" and not request.preferred_models:
                     tail = [*self.registry.candidates("fast"), *tail]
-                seen = {profile.alias}
+                seen = {profile.health_key()}
                 ordered_tail = []
                 for item in tail:
-                    if item.alias not in seen:
-                        seen.add(item.alias)
+                    if item.health_key() not in seen:
+                        seen.add(item.health_key())
                         ordered_tail.append(item)
                 return [profile, *ordered_tail]
             return [profile]
@@ -211,7 +214,7 @@ class SessionManager:
             return
         lock = self._provider_start_locks[profile.alias]
         async with lock:
-            state = self.registry.states[profile.alias]
+            state = self.registry.state_for(profile.alias)
             wait = profile.min_interval_seconds - (time.time() - state.last_started_at)
             if wait > 0:
                 await asyncio.sleep(wait)
@@ -313,6 +316,8 @@ class SessionManager:
             await self._respect_min_interval(profile)
             if profile.transport == "web":
                 text = await self.web.chat(profile, task_prompt, request.mode)
+                if not text.strip():
+                    raise KimiRuntimeError(f"Provider {profile.alias} returned an empty response")
                 event = GatewayEvent(
                     event_type=EventType.status,
                     timestamp=time.time(),
@@ -330,7 +335,9 @@ class SessionManager:
                 )
             runtime = await self._get_or_create_runtime(request, profile, external_id)
             text, stop_reason, usage = await runtime.prompt(task_prompt)
-            if not text.strip():
+            reasoning_content = "".join(runtime.thought_parts)
+            tool_calls = list(runtime.tool_calls.values())
+            if not text.strip() and not reasoning_content.strip() and not tool_calls:
                 raise KimiRuntimeError(f"Provider {profile.alias} returned an empty response")
             meta = self.session_meta.get(external_id)
             if meta is not None:
@@ -345,15 +352,15 @@ class SessionManager:
                 provider=profile.alias,
                 role=request.role,
                 upstream_model=profile.model,
-                reasoning_content="".join(runtime.thought_parts) or None,
-                tool_calls=list(runtime.tool_calls.values()),
+                reasoning_content=reasoning_content or None,
+                tool_calls=tool_calls,
                 events=list(runtime.events),
                 usage=usage,
             )
 
-    async def run(self, request: OrchestrationRequest) -> OrchestrationResult:
+    async def run(self, request: OrchestrationRequest, *, external_id: str | None = None) -> OrchestrationResult:
         task_prompt = build_task_prompt(request.prompt, request.mode, request.system, role=request.role)
-        external_id = request.session_id or uuid.uuid4().hex
+        external_id = external_id or request.session_id or uuid.uuid4().hex
         attempts: list[dict[str, Any]] = []
         candidates = self._candidate_profiles(request)
         candidates = candidates[: self.settings.max_route_attempts]
@@ -463,7 +470,7 @@ class SessionManager:
                         model="unavailable",
                         provider="unavailable",
                         role=role,
-                        attempts=[{"status": "failed", "error": str(result)}],
+                        attempts=[{"status": "failed", "error": redact_text(str(result))}],
                     )
                 )
             else:
@@ -491,13 +498,12 @@ class SessionManager:
 
     async def stream(self, request: OrchestrationRequest) -> AsyncIterator[GatewayEvent]:
         external_id = request.session_id or uuid.uuid4().hex
-        request.session_id = external_id
         queue: asyncio.Queue[GatewayEvent] = asyncio.Queue()
         self.event_queues[external_id] = queue
 
         async def runner() -> None:
             try:
-                result = await self.run(request)
+                result = await self.run(request, external_id=external_id)
                 await queue.put(
                     GatewayEvent(
                         event_type=EventType.status,

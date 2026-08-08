@@ -69,7 +69,6 @@ async def test_run_limits_total_attempts_and_retries_one_rate_limit(tmp_path):
         ProviderProfile(alias="third", display_name="Third", transport="oauth", provider_type="kimi", model="third"),
     ]
     manager.registry.profiles.update({profile.alias: profile for profile in profiles})
-    manager.registry.states.update({profile.alias: manager.registry.states["k3-256k"] for profile in profiles})
     manager.registry.retry_after_seconds = lambda _error: 0.0
     manager._candidate_profiles = lambda _request: profiles
     manager.audit = SimpleNamespace(write=lambda *args, **kwargs: None)
@@ -192,6 +191,63 @@ def test_explicit_nvidia_flash_keeps_ds2api_adjacent_without_fast_role():
     )
 
     assert [item.alias for item in candidates[:2]] == [nvidia.alias, ds2api.alias]
+
+
+@pytest.mark.asyncio
+async def test_stream_allows_new_request_to_fail_over_to_ds2api(tmp_path):
+    manager = object.__new__(SessionManager)
+    manager.settings = SimpleNamespace(max_route_attempts=3)
+    manager.registry = ProviderRegistry.load()
+    nvidia = manager.registry.get("nvidia-deepseek-v4-flash")
+    nvidia.bind_api_key("nv-test")
+    nvidia.runtime_verified = True
+    ds2api = manager.registry.get("ds2api-deepseek-v4-flash")
+    ds2api.enabled = True
+    ds2api.runtime_verified = True
+    manager._candidate_profiles = lambda _request: manager.registry.candidates("fast")
+    manager._provider_locks = {
+        nvidia.alias: asyncio.Semaphore(1),
+        ds2api.alias: asyncio.Semaphore(1),
+    }
+    manager._respect_min_interval = lambda _profile: _completed()
+    manager.audit = SimpleNamespace(write=lambda *args, **kwargs: None)
+    manager.runtimes = {}
+    manager.session_meta = {}
+    manager.event_queues = {}
+    manager._save_state = lambda: None
+    calls: list[str] = []
+
+    async def fake_run(_request, profile, _task_prompt, _external_id):
+        calls.append(profile.alias)
+        if profile.alias == nvidia.alias:
+            raise KimiRuntimeError("503 overloaded")
+        return OrchestrationResult(
+            session_id="stream-session",
+            text="stream fallback ok",
+            stop_reason="end_turn",
+            mode=OrchestrationMode.review,
+            model=profile.alias,
+            provider=profile.alias,
+            role="fast",
+            upstream_model=profile.model,
+        )
+
+    manager._run_profile = fake_run
+    events = [
+        event
+        async for event in manager.stream(
+            OrchestrationRequest(
+                prompt="stream DeepSeek Flash fallback",
+                cwd=str(tmp_path),
+                mode=OrchestrationMode.review,
+                role="fast",
+                allow_fallback=True,
+            )
+        )
+    ]
+
+    assert calls == [nvidia.alias, ds2api.alias]
+    assert events[-1].payload["state"] == "completed"
 
 
 async def _completed(value=None):

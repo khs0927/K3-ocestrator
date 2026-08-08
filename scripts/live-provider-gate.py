@@ -56,6 +56,9 @@ def main() -> int:
     parser.add_argument("--model", default="")
     parser.add_argument("--count", type=int, default=10)
     args = parser.parse_args()
+    if args.count < 10:
+        print(json.dumps({"ok": False, "provider": args.provider, "error": "production gate requires --count >= 10"}))
+        return 2
     default_base, default_model, key_name = DEFAULTS[args.provider]
     base = os.getenv(f"{args.provider.upper()}_BASE_URL", default_base).rstrip("/")
     model = args.model or os.getenv(f"{args.provider.upper()}_MODEL", default_model)

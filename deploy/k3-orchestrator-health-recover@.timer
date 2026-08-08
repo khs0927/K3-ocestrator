@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodic K3 Orchestrator health recovery for %i
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Persistent=true
+Unit=k3-orchestrator-health-recover@%i.service
+
+[Install]
+WantedBy=timers.target

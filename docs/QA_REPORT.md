@@ -5,7 +5,7 @@
 Executed in the K3 worktree:
 
 ```text
-./.venv/bin/python -m pytest -q                 PASS: 43 passed
+./.venv/bin/python -m pytest -q                 PASS: 51 passed
 ./scripts/validate.sh                           PASS: validation passed
 ./.venv/bin/python -m compileall -q app browser_bridge scripts   PASS
 python3 -m json.tool config/provider-profiles.example.json       PASS
@@ -22,6 +22,10 @@ identity, numeric/HTTP-date `Retry-After` handling, Kimi API exact model
 discovery, and API_KEY_FILE direct-value precedence.
 The security boundary tests also verify recursive audit-payload redaction for
 Bearer, API-key, password, token, and header-shaped credential strings.
+The adversarial review additions cover streaming NVIDIA-to-DS2API fallback,
+structured stream redaction, provider:model circuit sharing, timeout and full
+5xx classification, real HTTP Retry-After headers, empty tool/reasoning-only
+responses, and DS2API model-boundary enforcement.
 The live-gate contract tests exercise the DS2API health/readiness/model probes,
 ten synthetic chat iterations, exact-model fail-closed behavior, and explicit
 NVIDIA DeepSeek Flash to DS2API candidate ordering.
@@ -39,11 +43,11 @@ workflow SHAs are recorded in `docs/CI_SHA_MANIFEST.md`.
 ## Hosted evidence
 
 - K3 PR #1: <https://github.com/khs0927/K3-ocestrator/pull/1>
-- Public Actions run for implementation head `b8ea968`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31280097632>
-- PR Actions run for implementation head `b8ea968`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31280099248>
+- Public Actions run for implementation head `0f8dd10`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31280427961>
+- PR Actions run for implementation head `0f8dd10`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31280429595>
 - Python 3.11: passed
 - Python 3.13: passed
-- K3 implementation head covered by the evidence above: `b8ea968`
+- K3 implementation head covered by the evidence above: `0f8dd10`
 - Compose auth healthcheck fix: `556237d`
 - Security/error-boundary and explicit-fallback tests: `fdd32fe` plus the current branch head
 - DS2API config Secret PR: <https://github.com/khs0927/ds2api-multi-provider/pull/2>

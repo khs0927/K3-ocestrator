@@ -9,7 +9,7 @@ from typing import Any, AsyncIterator
 
 import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import __version__
@@ -25,7 +25,7 @@ from .models import (
     SubagentRequest,
 )
 from .prompting import flatten_openai_messages
-from .security import redact_text, verify_bearer
+from .security import redact_payload, redact_text, verify_bearer
 
 settings.prepare()
 manager = SessionManager(settings)
@@ -84,6 +84,18 @@ async def health(_: None = Depends(require_key)) -> dict[str, Any]:
         "web_advisory_fallback": settings.enable_web_advisory_fallback,
         "self_mcp": settings.enable_self_mcp,
     }
+
+
+@app.get("/ready")
+async def ready(_: None = Depends(require_key)) -> JSONResponse:
+    ready_profiles = manager.registry.candidates(settings.default_role)
+    kimi_command = shutil.which(settings.kimi_command)
+    payload = {
+        "status": "ready" if ready_profiles and kimi_command else "not_ready",
+        "kimi_command": kimi_command,
+        "available_providers": [profile.alias for profile in ready_profiles],
+    }
+    return JSONResponse(status_code=200 if payload["status"] == "ready" else 503, content=payload)
 
 
 @app.get("/v1/models")
@@ -208,7 +220,8 @@ async def orchestrate_stream(
 ) -> StreamingResponse:
     async def events() -> AsyncIterator[str]:
         async for event in manager.stream(request):
-            yield f"event: {event.event_type.value}\ndata: {event.model_dump_json()}\n\n"
+            payload = redact_payload(event.model_dump())
+            yield f"event: {event.event_type.value}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream")
 
@@ -410,8 +423,9 @@ async def chat_completions(
     async def stream_events() -> AsyncIterator[str]:
         emitted_text = False
         async for event in manager.stream(orchestration):
+            event_payload = redact_payload(event.payload)
             if event.event_type is EventType.message:
-                content = event.payload.get("content", {})
+                content = event_payload.get("content", {})
                 if isinstance(content, dict) and content.get("type") == "text":
                     delta = str(content.get("text", ""))
                     chunk = {
@@ -425,7 +439,7 @@ async def chat_completions(
                         emitted_text = True
                         yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
             elif event.event_type is EventType.thought:
-                content = event.payload.get("content", {})
+                content = event_payload.get("content", {})
                 if isinstance(content, dict) and content.get("type") == "text":
                     delta = str(content.get("text", ""))
                     if delta:
@@ -443,17 +457,17 @@ async def chat_completions(
                     "object": "chat.completion.chunk",
                     "created": created,
                     "model": request.model,
-                    "choices": [{"index": 0, "delta": {"tool_calls": [event.payload]}, "finish_reason": None}],
+                    "choices": [{"index": 0, "delta": {"tool_calls": [event_payload]}, "finish_reason": None}],
                 }
                 yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
-            elif event.event_type is EventType.status and event.payload.get("state") == "completed":
-                final_text = str(event.payload.get("text", ""))
+            elif event.event_type is EventType.status and event_payload.get("state") == "completed":
+                final_text = str(event_payload.get("text", ""))
                 if final_text and not emitted_text:
                     content_chunk = {
                         "id": completion_id,
                         "object": "chat.completion.chunk",
                         "created": created,
-                        "model": event.payload.get("provider", request.model),
+                        "model": event_payload.get("provider", request.model),
                         "choices": [{"index": 0, "delta": {"content": final_text}, "finish_reason": None}],
                     }
                     yield f"data: {json.dumps(content_chunk, ensure_ascii=False)}\n\n"
@@ -461,24 +475,24 @@ async def chat_completions(
                     "id": completion_id,
                     "object": "chat.completion.chunk",
                     "created": created,
-                    "model": event.payload.get("provider", request.model),
+                    "model": event_payload.get("provider", request.model),
                     "choices": [{
                         "index": 0,
                         "delta": {
-                            **({"reasoning_content": event.payload["reasoning_content"]} if event.payload.get("reasoning_content") else {}),
-                            **({"tool_calls": event.payload["tool_calls"]} if event.payload.get("tool_calls") else {}),
+                            **({"reasoning_content": event_payload["reasoning_content"]} if event_payload.get("reasoning_content") else {}),
+                            **({"tool_calls": event_payload["tool_calls"]} if event_payload.get("tool_calls") else {}),
                         },
                         "finish_reason": "stop",
                     }],
-                    "session_id": event.payload.get("session_id"),
-                    "upstream_model": event.payload.get("upstream_model"),
-                    "attempts": event.payload.get("attempts", []),
+                    "session_id": event_payload.get("session_id"),
+                    "upstream_model": event_payload.get("upstream_model"),
+                    "attempts": event_payload.get("attempts", []),
                 }
                 yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
                 yield "data: [DONE]\n\n"
                 return
             elif event.event_type is EventType.error:
-                yield f"data: {json.dumps({'error': event.payload}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'error': event_payload}, ensure_ascii=False)}\n\n"
                 yield "data: [DONE]\n\n"
                 return
 

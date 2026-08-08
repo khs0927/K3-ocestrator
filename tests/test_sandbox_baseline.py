@@ -35,3 +35,14 @@ def test_provider_compose_wires_root_only_gateway_and_ds2api_secrets():
     assert "GATEWAY_API_KEY_FILE:?set" in text
     assert "--fail-fast" in text
     assert "DS2API_JWT_SECRET_FILE:?set" in text
+    assert "http://127.0.0.1:8790/ready" in text
+    assert "http://127.0.0.1:5001/readyz" in text
+    assert "deepseek-v4-flash" in text
+
+
+def test_systemd_recovery_templates_cover_gateway_and_ds2api():
+    service = Path("deploy/k3-orchestrator-health-recover@.service").read_text(encoding="utf-8")
+    timer = Path("deploy/k3-orchestrator-health-recover@.timer").read_text(encoding="utf-8")
+    assert "Environment=SERVICE=%i" in service
+    assert "compose-health-recover.sh" in service
+    assert "OnUnitActiveSec=1min" in timer
