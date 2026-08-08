@@ -42,8 +42,9 @@ present.
 - Compose auth healthcheck fix: `556237d`
 - Security/error-boundary and explicit-fallback tests: `fdd32fe` plus the current branch head
 - DS2API config Secret PR: <https://github.com/khs0927/ds2api-multi-provider/pull/2>
+- DS2API latest Secret-file consistency commit: `291ed32`
 - DS2API local Go evidence: `go1.26.5 go test ./...` and `go vet ./...` passed;
-  remote Quality Gates also passed: <https://github.com/khs0927/ds2api-multi-provider/actions/runs/31276324368>.
+  remote Quality Gates also passed: <https://github.com/khs0927/ds2api-multi-provider/actions/runs/31279315631>.
 - Kimi API live gate workflow: supports exact `kimi-k3` discovery and bounded
   synthetic chat using the `live-provider-gate` environment's `KIMI_API_KEY`.
 
