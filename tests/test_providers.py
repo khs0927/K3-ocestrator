@@ -192,6 +192,26 @@ def test_circuit_state_is_shared_by_provider_model_health_key():
     assert {item.alias for item in registry.candidates("fast")} == set()
 
 
+def test_success_resets_shared_provider_model_circuit_state():
+    registry = ProviderRegistry.load()
+    profile = registry.get("nvidia-deepseek-v4-flash")
+    profile.bind_api_key("nv-test")
+    profile.runtime_verified = True
+
+    registry.record_failure(profile.alias, "503 overloaded")
+    state = registry.state_for(profile.alias)
+    assert state.consecutive_failures == 1
+    assert state.open_until > time.time()
+
+    registry.record_success(profile.alias)
+
+    assert registry.state_for(profile.alias) is state
+    assert state.consecutive_failures == 0
+    assert state.open_until == 0.0
+    assert state.total_successes == 1
+    assert profile.alias in {item.alias for item in registry.candidates("fast")}
+
+
 def test_ds2api_runtime_gate_checks_health_readiness_and_exact_model(monkeypatch):
     class Response:
         status_code = 200

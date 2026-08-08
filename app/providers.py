@@ -442,7 +442,10 @@ class ProviderRegistry:
         return result
 
     def record_success(self, alias: str) -> None:
-        state = self.states.setdefault(alias, ProviderRuntimeState())
+        # Circuit state is keyed by provider:model, not by the user-facing
+        # alias. A successful retry must clear the same shared state that a
+        # failure opened, including when multiple aliases point at one model.
+        state = self.state_for(alias)
         state.consecutive_failures = 0
         state.open_until = 0.0
         state.last_error = None
