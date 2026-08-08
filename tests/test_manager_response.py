@@ -6,7 +6,13 @@ from types import SimpleNamespace
 import pytest
 
 from app.manager import SessionManager
-from app.models import OrchestrationMode, OrchestrationRequest, OrchestrationResult
+from app.models import (
+    EventType,
+    GatewayEvent,
+    OrchestrationMode,
+    OrchestrationRequest,
+    OrchestrationResult,
+)
 from app.providers import ProviderProfile, ProviderRegistry
 from app.acp_runtime import KimiRuntimeError
 
@@ -272,6 +278,63 @@ async def test_stream_allows_new_request_to_fail_over_to_ds2api(tmp_path):
 
     assert calls == [nvidia.alias, ds2api.alias]
     assert events[-1].payload["state"] == "completed"
+
+
+@pytest.mark.asyncio
+async def test_stream_does_not_mix_fallback_after_partial_provider_output(tmp_path):
+    manager = object.__new__(SessionManager)
+    manager.settings = SimpleNamespace(max_route_attempts=3)
+    manager.registry = ProviderRegistry.load()
+    nvidia = manager.registry.get("nvidia-deepseek-v4-flash")
+    nvidia.bind_api_key("nv-test")
+    nvidia.runtime_verified = True
+    ds2api = manager.registry.get("ds2api-deepseek-v4-flash")
+    ds2api.enabled = True
+    ds2api.runtime_verified = True
+    manager._candidate_profiles = lambda _request: manager.registry.candidates("fast")
+    manager._provider_locks = {
+        nvidia.health_key(): asyncio.Semaphore(1),
+        ds2api.health_key(): asyncio.Semaphore(1),
+    }
+    manager._respect_min_interval = lambda _profile: _completed()
+    manager.audit = SimpleNamespace(write=lambda *args, **kwargs: None)
+    manager.runtimes = {}
+    manager.session_meta = {}
+    manager.event_queues = {}
+    manager._save_state = lambda: None
+    calls: list[str] = []
+
+    async def fake_run(_request, profile, _task_prompt, external_id):
+        calls.append(profile.alias)
+        if profile.alias == nvidia.alias:
+            await manager._emit(
+                external_id,
+                GatewayEvent(
+                    event_type=EventType.message,
+                    timestamp=0,
+                    payload={"content": {"type": "text", "text": "partial"}},
+                ),
+            )
+            raise KimiRuntimeError("503 after partial output")
+        raise AssertionError("fallback must not mix with a partial stream")
+
+    manager._run_profile = fake_run
+    events = [
+        event
+        async for event in manager.stream(
+            OrchestrationRequest(
+                prompt="partial stream",
+                cwd=str(tmp_path),
+                mode=OrchestrationMode.review,
+                role="fast",
+                allow_fallback=True,
+            )
+        )
+    ]
+
+    assert calls == [nvidia.alias]
+    assert events[0].event_type is EventType.message
+    assert events[-1].event_type is EventType.error
 
 
 async def _completed(value=None):

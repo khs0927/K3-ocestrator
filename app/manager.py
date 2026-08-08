@@ -41,6 +41,7 @@ class SessionManager:
         self.runtimes: dict[str, KimiAcpRuntime] = {}
         self.session_meta: dict[str, dict[str, Any]] = {}
         self.event_queues: dict[str, asyncio.Queue[GatewayEvent]] = {}
+        self._stream_activity: dict[str, bool] = {}
         self._lock = asyncio.Lock()
         self._provider_locks = {
             profile.health_key(): asyncio.Semaphore(profile.max_concurrency)
@@ -117,6 +118,10 @@ class SessionManager:
         return resolve_allowed_path(target, self.settings.workspace_roots())
 
     async def _emit(self, external_id: str, event: GatewayEvent) -> None:
+        if event.event_type not in {EventType.status, EventType.usage}:
+            stream_activity = getattr(self, "_stream_activity", None)
+            if stream_activity is not None and external_id in stream_activity:
+                stream_activity[external_id] = True
         queue = self.event_queues.get(external_id)
         if queue is not None:
             await queue.put(event)
@@ -419,6 +424,12 @@ class SessionManager:
                     if request.session_id is None:
                         self.session_meta.pop(external_id, None)
                         self._save_state()
+                    # Once a streaming provider has emitted content or a tool
+                    # event, switching providers would concatenate two partial
+                    # responses that the client cannot roll back. Only a
+                    # failure before stream activity may fail over safely.
+                    if getattr(self, "_stream_activity", {}).get(external_id, False):
+                        break
                     if kind == "rate_limit" and not retried_rate_limit and len(attempts) < self.settings.max_route_attempts:
                         retried_rate_limit = True
                         await asyncio.sleep(self.registry.retry_after_seconds(exc))
@@ -426,6 +437,8 @@ class SessionManager:
                     if request.session_id or not request.allow_fallback:
                         break
                     break
+            if getattr(self, "_stream_activity", {}).get(external_id, False):
+                break
         raise KimiRuntimeError(
             f"All provider routes failed for role {request.role}: {redact_text(str(last_error))}; attempts={attempts}"
         )
@@ -510,6 +523,10 @@ class SessionManager:
         external_id = request.session_id or uuid.uuid4().hex
         queue: asyncio.Queue[GatewayEvent] = asyncio.Queue()
         self.event_queues[external_id] = queue
+        stream_activity = getattr(self, "_stream_activity", None)
+        if stream_activity is None:
+            self._stream_activity = {}
+        self._stream_activity[external_id] = False
 
         async def runner() -> None:
             try:
@@ -552,6 +569,7 @@ class SessionManager:
                     break
         finally:
             self.event_queues.pop(external_id, None)
+            self._stream_activity.pop(external_id, None)
             if not task.done():
                 task.cancel()
 
