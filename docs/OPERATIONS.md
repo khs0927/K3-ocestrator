@@ -72,7 +72,20 @@ docker compose -f docker-compose.providers.yml up -d
 docker compose -f docker-compose.providers.yml --profile qa run --rm qa
 ```
 
-The config secret is owned by DS2API and contains the DeepSeek account material; it is never mounted into the K3 gateway. The gateway receives only the DS2API managed API key from its separate secret file. The watchdog writes a redacted heartbeat every 30 seconds; container restart policies and the persisted Kimi/state volumes allow recovery from a process restart. A VPS host-level monitor must restart an unhealthy gateway container if Docker health status remains failing.
+The config secret is owned by DS2API and contains the DeepSeek account material; it is never mounted into the K3 gateway. The gateway receives only the DS2API managed API key from its separate secret file. The watchdog writes a redacted heartbeat every 30 seconds and exits on a failed check so its own `restart: unless-stopped` policy can recycle it. Docker does not restart a container merely because it is `unhealthy`, so install the host-level recovery helper below for the gateway.
+
+Run the recovery helper from a root-only systemd timer or cron entry on the VPS:
+
+```bash
+COMPOSE_ENV_FILE=/etc/k3-secrets/provider.env \
+RECOVERY_STATE_FILE=/var/lib/k3-orchestrator/gateway-recovery.last \
+/opt/k3-ocestrator/scripts/compose-health-recover.sh
+```
+
+It only restarts the named `gateway` service for `unhealthy`, `exited` or
+`dead` state, uses a five-minute cooldown, and never prints Secret contents.
+The persisted `/state/gateway-state.json` and Kimi session volume allow the
+gateway to resume the session checkpoint after the container is restarted.
 
 ## Daily checks
 

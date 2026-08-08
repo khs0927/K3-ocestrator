@@ -70,12 +70,19 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=5.0)
     parser.add_argument("--heartbeat", default=os.getenv("WATCHDOG_HEARTBEAT", "./data/watchdog-heartbeat.json"))
     parser.add_argument("--once", action="store_true")
+    parser.add_argument(
+        "--fail-fast",
+        action="store_true",
+        help="exit non-zero after a failed check so the container restart policy can recycle the watchdog",
+    )
     args = parser.parse_args()
     heartbeat = Path(args.heartbeat)
     if args.once:
         return run_once(heartbeat, args.timeout)
     while True:
-        run_once(heartbeat, args.timeout)
+        result = run_once(heartbeat, args.timeout)
+        if args.fail_fast and result != 0:
+            return result
         time.sleep(max(1.0, args.interval))
 
 

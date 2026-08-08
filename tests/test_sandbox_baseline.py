@@ -33,4 +33,5 @@ def test_provider_compose_wires_root_only_gateway_and_ds2api_secrets():
     assert "gateway_api_key:" in text
     assert "ds2api_jwt_secret:" in text
     assert "GATEWAY_API_KEY_FILE:?set" in text
+    assert "--fail-fast" in text
     assert "DS2API_JWT_SECRET_FILE:?set" in text

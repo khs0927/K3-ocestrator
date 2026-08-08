@@ -5,7 +5,7 @@
 Executed in the K3 worktree:
 
 ```text
-./.venv/bin/python -m pytest -q                 PASS: 42 passed
+./.venv/bin/python -m pytest -q                 PASS: 43 passed
 ./scripts/validate.sh                           PASS: validation passed
 ./.venv/bin/python -m compileall -q app browser_bridge scripts   PASS
 python3 -m json.tool config/provider-profiles.example.json       PASS
@@ -30,7 +30,9 @@ secret-file wiring and successful `docker compose config` rendering with the
 example environment and placeholder paths.
 The watchdog tests confirm direct-secret precedence and root-only file fallback;
 the Compose healthcheck reads the mounted gateway Secret when no direct key is
-present.
+present, and the watchdog exits on failed health when deployed with
+`--fail-fast`; `scripts/compose-health-recover.sh` provides the host-level
+unhealthy-container recovery path.
 The validation script also rejects mutable GitHub Action tags; the current
 workflow SHAs are recorded in `docs/CI_SHA_MANIFEST.md`.
 

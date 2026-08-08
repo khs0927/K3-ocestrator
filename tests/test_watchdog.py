@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 
@@ -23,3 +24,10 @@ def test_watchdog_secret_file_fallback_and_direct_precedence(tmp_path, monkeypat
 
     monkeypatch.setenv("GATEWAY_API_KEY", "direct-gateway-key")
     assert watchdog.secret_from_env("GATEWAY_API_KEY") == "direct-gateway-key"
+
+
+def test_watchdog_fail_fast_exits_after_failed_health_check(tmp_path, monkeypatch):
+    watchdog = _load_watchdog()
+    monkeypatch.setattr(sys, "argv", ["watchdog.py", "--heartbeat", str(tmp_path / "heartbeat.json"), "--fail-fast"])
+    monkeypatch.setattr(watchdog, "run_once", lambda *_args: 1)
+    assert watchdog.main() == 1
