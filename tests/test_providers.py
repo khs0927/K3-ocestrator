@@ -327,6 +327,43 @@ def test_provider_and_gateway_secret_files_are_resolved_without_export(tmp_path:
     assert "GATEWAY_API_KEY" not in os.environ
 
 
+def test_manager_provider_locks_are_shared_by_provider_model(tmp_path: Path):
+    settings = Settings(
+        _env_file=None,
+        default_workspace=tmp_path / "workspace",
+        kimi_code_home=tmp_path / "kimi-home",
+        audit_log=tmp_path / "audit.jsonl",
+        state_file=tmp_path / "state.json",
+        provider_profiles_file=tmp_path / "profiles.json",
+        routing_file=tmp_path / "routes.json",
+    )
+    settings.prepare()
+    manager = SessionManager(settings)
+    profile = manager.registry.get("nvidia-deepseek-v4-flash")
+    duplicate = ProviderProfile(
+        alias="nvidia-flash-duplicate",
+        display_name="NVIDIA Flash Duplicate",
+        transport=profile.transport,
+        provider_type=profile.provider_type,
+        model=profile.model,
+        base_url=profile.base_url,
+        auth_required=profile.auth_required,
+        api_key_env=profile.api_key_env,
+        max_concurrency=profile.max_concurrency,
+    )
+    manager.registry.profiles[duplicate.alias] = duplicate
+
+    assert duplicate.health_key() == profile.health_key()
+    assert (
+        manager._provider_locks[duplicate.health_key()]
+        is manager._provider_locks[profile.health_key()]
+    )
+    assert (
+        manager._provider_start_locks[duplicate.health_key()]
+        is manager._provider_start_locks[profile.health_key()]
+    )
+
+
 def test_ds2api_secret_file_is_bound_without_environment_export(tmp_path: Path, monkeypatch):
     secret = tmp_path / "ds2api-api-key"
     secret.write_text("managed-key\n", encoding="utf-8")

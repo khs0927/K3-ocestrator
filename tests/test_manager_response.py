@@ -28,7 +28,7 @@ async def test_run_profile_preserves_acp_prompt_metadata(tmp_path):
     manager.registry = SimpleNamespace(record_success=lambda _alias: None)
     manager.session_meta = {"session": {"updated_at": 0}}
     manager._save_state = lambda: None
-    manager._provider_locks = {"test": __import__("asyncio").Semaphore(1)}
+    manager._provider_locks = {"api:test-model": __import__("asyncio").Semaphore(1)}
     manager._respect_min_interval = lambda _profile: _completed()
     manager._get_or_create_runtime = lambda *_args, **_kwargs: _completed(_FakeRuntime())
 
@@ -125,8 +125,8 @@ async def test_deepseek_flash_fails_over_from_nvidia_to_ds2api(tmp_path):
     ds2api.runtime_verified = True
     manager._candidate_profiles = lambda _request: manager.registry.candidates("fast")
     manager._provider_locks = {
-        nvidia.alias: asyncio.Semaphore(1),
-        ds2api.alias: asyncio.Semaphore(1),
+        nvidia.health_key(): asyncio.Semaphore(1),
+        ds2api.health_key(): asyncio.Semaphore(1),
     }
 
     async def no_interval(_profile):
@@ -206,8 +206,8 @@ async def test_stream_allows_new_request_to_fail_over_to_ds2api(tmp_path):
     ds2api.runtime_verified = True
     manager._candidate_profiles = lambda _request: manager.registry.candidates("fast")
     manager._provider_locks = {
-        nvidia.alias: asyncio.Semaphore(1),
-        ds2api.alias: asyncio.Semaphore(1),
+        nvidia.health_key(): asyncio.Semaphore(1),
+        ds2api.health_key(): asyncio.Semaphore(1),
     }
     manager._respect_min_interval = lambda _profile: _completed()
     manager.audit = SimpleNamespace(write=lambda *args, **kwargs: None)

@@ -43,11 +43,11 @@ class SessionManager:
         self.event_queues: dict[str, asyncio.Queue[GatewayEvent]] = {}
         self._lock = asyncio.Lock()
         self._provider_locks = {
-            alias: asyncio.Semaphore(profile.max_concurrency)
-            for alias, profile in self.registry.profiles.items()
+            profile.health_key(): asyncio.Semaphore(profile.max_concurrency)
+            for profile in self.registry.profiles.values()
         }
         self._provider_start_locks = {
-            alias: asyncio.Lock() for alias in self.registry.profiles
+            profile.health_key(): asyncio.Lock() for profile in self.registry.profiles.values()
         }
         self._load_state()
 
@@ -212,7 +212,7 @@ class SessionManager:
     async def _respect_min_interval(self, profile: ProviderProfile) -> None:
         if profile.min_interval_seconds <= 0:
             return
-        lock = self._provider_start_locks[profile.alias]
+        lock = self._provider_start_locks[profile.health_key()]
         async with lock:
             state = self.registry.state_for(profile.alias)
             wait = profile.min_interval_seconds - (time.time() - state.last_started_at)
@@ -311,7 +311,7 @@ class SessionManager:
     ) -> OrchestrationResult:
         if profile.advisory_only and request.mode in {OrchestrationMode.execute, OrchestrationMode.yolo}:
             raise KimiRuntimeError(f"{profile.alias} is advisory-only")
-        semaphore = self._provider_locks[profile.alias]
+        semaphore = self._provider_locks[profile.health_key()]
         async with semaphore:
             await self._respect_min_interval(profile)
             if profile.transport == "web":
