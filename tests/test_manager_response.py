@@ -193,6 +193,30 @@ def test_explicit_nvidia_flash_keeps_ds2api_adjacent_without_fast_role():
     assert [item.alias for item in candidates[:2]] == [nvidia.alias, ds2api.alias]
 
 
+def test_explicit_nvidia_flash_uses_ds2api_when_primary_circuit_is_open():
+    manager = object.__new__(SessionManager)
+    manager.settings = SimpleNamespace(default_role="orchestrator")
+    manager.registry = ProviderRegistry.load()
+    nvidia = manager.registry.get("nvidia-deepseek-v4-flash")
+    nvidia.bind_api_key("nv-test")
+    nvidia.runtime_verified = True
+    ds2api = manager.registry.get("ds2api-deepseek-v4-flash")
+    ds2api.enabled = True
+    ds2api.runtime_verified = True
+    manager.registry.record_failure(nvidia.alias, "503 overloaded")
+
+    candidates = manager._candidate_profiles(
+        OrchestrationRequest(
+            prompt="test",
+            model=nvidia.alias,
+            allow_fallback=True,
+        )
+    )
+
+    assert candidates[0].alias == ds2api.alias
+    assert nvidia.alias not in {item.alias for item in candidates}
+
+
 @pytest.mark.asyncio
 async def test_stream_allows_new_request_to_fail_over_to_ds2api(tmp_path):
     manager = object.__new__(SessionManager)

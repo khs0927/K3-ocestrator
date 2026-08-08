@@ -135,13 +135,13 @@ class SessionManager:
             return [existing]
         if request.model and request.model != "multi-agent-orchestrator":
             profile = self.registry.get(request.model)
-            if not profile.available():
-                raise KimiRuntimeError(
-                    f"Provider {profile.alias} is not available; configure {profile.api_key_env or 'its login'}"
-                )
             state = self.registry.state_for(profile.alias)
-            if state.permanently_disabled or state.open_until > time.time():
-                raise KimiRuntimeError(f"Provider {profile.alias} circuit is open")
+            circuit_blocked = state.permanently_disabled or state.open_until > time.time()
+            if (not profile.available() or circuit_blocked) and not request.allow_fallback:
+                reason = "circuit is open" if circuit_blocked else (
+                    f"configure {profile.api_key_env or 'its login'}"
+                )
+                raise KimiRuntimeError(f"Provider {profile.alias} is not available; {reason}")
             if request.allow_fallback:
                 tail = self.registry.candidates(request.role, request.preferred_models or None)
                 # DeepSeek Flash has a provider-specific emergency path. Keep it
@@ -155,7 +155,17 @@ class SessionManager:
                     if item.health_key() not in seen:
                         seen.add(item.health_key())
                         ordered_tail.append(item)
-                return [profile, *ordered_tail]
+                if profile.available() and not circuit_blocked:
+                    return [profile, *ordered_tail]
+                if ordered_tail:
+                    return ordered_tail
+                raise KimiRuntimeError(
+                    f"Provider {profile.alias} is not available and no fallback provider is ready"
+                )
+            if not profile.available():
+                raise KimiRuntimeError(
+                    f"Provider {profile.alias} is not available; configure {profile.api_key_env or 'its login'}"
+                )
             return [profile]
         preferred = request.preferred_models or None
         profiles = self.registry.candidates(request.role or self.settings.default_role, preferred)
