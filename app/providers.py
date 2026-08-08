@@ -313,8 +313,8 @@ DEFAULT_PROFILES: list[dict[str, Any]] = [
 
 DEFAULT_ROUTES: dict[str, list[str]] = {
     "orchestrator": ["k3-256k", "k3", "kimi-k3-api", "kimi-k3-self-hosted", "nvidia-glm-5.2", "nvidia-deepseek-v4-pro"],
-    "planner": ["k3-256k", "nvidia-glm-5.2", "k3", "kimi-k3-api", "kimi-k3-self-hosted", "zai-glm-5.2", "glm-web-advisory"],
-    "architect": ["nvidia-glm-5.2", "k3", "nvidia-deepseek-v4-pro", "zai-glm-5.2"],
+    "planner": ["k3-256k", "kimi-k3-api", "kimi-k3-self-hosted", "nvidia-glm-5.2", "k3", "zai-glm-5.2", "glm-web-advisory"],
+    "architect": ["nvidia-glm-5.2", "k3", "kimi-k3-api", "kimi-k3-self-hosted", "nvidia-deepseek-v4-pro", "zai-glm-5.2"],
     "coder": ["k3-256k", "kimi-k3-api", "kimi-k3-self-hosted", "nvidia-deepseek-v4-flash", "ds2api-deepseek-v4-flash", "deepseek-v4-flash", "nvidia-glm-5.2"],
     "reviewer": ["nvidia-deepseek-v4-pro", "nvidia-glm-5.2", "k3-256k", "kimi-k3-api", "kimi-k3-self-hosted", "deepseek-v4-pro", "zai-glm-5.2"],
     "researcher": ["nvidia-glm-5.2", "k3", "kimi-k3-api", "kimi-k3-self-hosted", "nvidia-deepseek-v4-flash", "glm-web-advisory", "deepseek-web-advisory"],
