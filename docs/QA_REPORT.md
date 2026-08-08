@@ -5,7 +5,7 @@
 Executed in the K3 worktree:
 
 ```text
-./.venv/bin/python -m pytest -q                 PASS: 53 passed
+./.venv/bin/python -m pytest -q                 PASS: 54 passed
 ./scripts/validate.sh                           PASS: validation passed
 ./.venv/bin/python -m compileall -q app browser_bridge scripts   PASS
 python3 -m json.tool config/provider-profiles.example.json       PASS
@@ -44,11 +44,11 @@ workflow SHAs are recorded in `docs/CI_SHA_MANIFEST.md`.
 ## Hosted evidence
 
 - K3 PR #1: <https://github.com/khs0927/K3-ocestrator/pull/1>
-- Public Actions run for implementation head `cb23f65`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31281571848>
-- PR Actions run for implementation head `cb23f65`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31281574282>
+- Public Actions run for implementation head `baa9801`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31281689743>
+- PR Actions run for implementation head `baa9801`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31281691599>
 - Python 3.11: passed
 - Python 3.13: passed
-- K3 implementation head covered by the evidence above: `cb23f65`
+- K3 implementation head covered by the evidence above: `baa9801`
 - Compose auth healthcheck fix: `556237d`
 - Security/error-boundary and explicit-fallback tests: `fdd32fe` plus the current branch head
 - DS2API config Secret PR: <https://github.com/khs0927/ds2api-multi-provider/pull/2>
