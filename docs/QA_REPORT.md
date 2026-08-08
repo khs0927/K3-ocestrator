@@ -5,7 +5,7 @@
 Executed in the K3 worktree:
 
 ```text
-./.venv/bin/python -m pytest -q                 PASS: 54 passed
+./.venv/bin/python -m pytest -q                 PASS: 55 passed
 ./scripts/validate.sh                           PASS: validation passed
 ./.venv/bin/python -m compileall -q app browser_bridge scripts   PASS
 python3 -m json.tool config/provider-profiles.example.json       PASS
@@ -26,7 +26,8 @@ The adversarial review additions cover streaming NVIDIA-to-DS2API fallback,
 structured stream redaction, provider:model circuit sharing, timeout and full
 5xx classification, real HTTP Retry-After headers, empty tool/reasoning-only
 responses, DS2API model-boundary enforcement, and shared provider:model
-concurrency/min-interval locks.
+concurrency/min-interval locks. Streaming tests also ensure that a provider
+cannot be swapped after partial output has reached the client.
 The live-gate contract tests exercise the DS2API health/readiness/model probes,
 ten synthetic chat iterations, exact-model fail-closed behavior, and explicit
 NVIDIA DeepSeek Flash to DS2API candidate ordering.
@@ -44,11 +45,11 @@ workflow SHAs are recorded in `docs/CI_SHA_MANIFEST.md`.
 ## Hosted evidence
 
 - K3 PR #1: <https://github.com/khs0927/K3-ocestrator/pull/1>
-- Public Actions run for implementation head `baa9801`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31281689743>
-- PR Actions run for implementation head `baa9801`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31281691599>
+- Public Actions run for implementation head `7a29e58`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31281967529>
+- PR Actions run for implementation head `7a29e58`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31281969116>
 - Python 3.11: passed
 - Python 3.13: passed
-- K3 implementation head covered by the evidence above: `baa9801`
+- K3 implementation head covered by the evidence above: `7a29e58`
 - Compose auth healthcheck fix: `556237d`
 - Security/error-boundary and explicit-fallback tests: `fdd32fe` plus the current branch head
 - DS2API config Secret PR: <https://github.com/khs0927/ds2api-multi-provider/pull/2>
