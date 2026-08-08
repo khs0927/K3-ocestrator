@@ -1,0 +1,37 @@
+services:
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 4g
+    cpus: 2.0
+    restart: "no"
+    ports:
+      - "127.0.0.1:8790:8790"
+    env_file:
+      - .env
+    environment:
+      GATEWAY_HOST: 0.0.0.0
+      GATEWAY_PORT: 8790
+      DEFAULT_WORKSPACE: /workspace
+      KIMI_CODE_HOME: /home/orchestrator/.kimi-code
+      AUDIT_LOG: /state/audit.jsonl
+      STATE_FILE: /state/gateway-state.json
+      ALLOW_PATHS: "[]"
+      ALLOW_YOLO_MODE: "false"
+    volumes:
+      - ./workspace:/workspace:rw
+      - ./data/kimi-code-home:/home/orchestrator/.kimi-code:rw
+      - ./data/sandbox-state:/state:rw
+      - ./config:/opt/gateway/config:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=256m
+      - /home/orchestrator/.cache:rw,noexec,nosuid,nodev,size=512m

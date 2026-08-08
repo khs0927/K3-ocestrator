@@ -1,0 +1,65 @@
+name: Live provider gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Provider to verify"
+        required: true
+        type: choice
+        options: [kimi, nvidia, ds2api, zai]
+        default: nvidia
+      model:
+        description: "Exact upstream model ID; leave blank for the provider default"
+        required: false
+        type: string
+      count:
+        description: "Synthetic chats; production gate requires at least 10"
+        required: true
+        type: string
+        default: "10"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: k3-live-provider-gate-${{ inputs.provider }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    environment: live-provider-gate
+    env:
+      KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+      KIMI_BASE_URL: ${{ vars.KIMI_BASE_URL || 'https://api.moonshot.ai/v1' }}
+      KIMI_MODEL: ${{ vars.KIMI_MODEL || 'kimi-k3' }}
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      NVIDIA_BASE_URL: ${{ vars.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1' }}
+      NVIDIA_MODEL: ${{ vars.NVIDIA_MODEL || 'deepseek-ai/deepseek-v4-flash' }}
+      DS2API_API_KEY: ${{ secrets.DS2API_API_KEY }}
+      DS2API_BASE_URL: ${{ vars.DS2API_BASE_URL || '' }}
+      DS2API_MODEL: ${{ vars.DS2API_MODEL || 'deepseek-v4-flash' }}
+      ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+      ZAI_BASE_URL: ${{ vars.ZAI_BASE_URL || 'https://api.z.ai/api/paas/v4' }}
+      ZAI_MODEL: ${{ vars.ZAI_MODEL || 'glm-5.2' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Run exact-model and synthetic gate
+        shell: bash
+        env:
+          PROVIDER: ${{ inputs.provider }}
+          MODEL: ${{ inputs.model }}
+          COUNT: ${{ inputs.count }}
+        run: |
+          set -euo pipefail
+          if [ "$PROVIDER" = "ds2api" ] && [ -z "$DS2API_BASE_URL" ]; then
+            echo "::error::DS2API_BASE_URL must point to an authorized remote DS2API service for this workflow"
+            exit 2
+          fi
+          args=("$PROVIDER" "--count" "$COUNT")
+          if [ -n "$MODEL" ]; then args+=("--model" "$MODEL"); fi
+          python scripts/live-provider-gate.py "${args[@]}"
