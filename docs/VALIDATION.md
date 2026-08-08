@@ -5,7 +5,8 @@ Version: 0.6.0
 ## Completed in the build environment
 
 - Python source compilation: passed
-- Unit tests: 40 passed
+- Unit tests: 42 passed
+- Reproducible validation: `./scripts/validate.sh` passed, including JSON, shell, secret-scan and provider Compose rendering checks
 - plan/review/execute/yolo policy tests: passed
 - workspace path-boundary and symlink-resolution tests: passed
 - prompt and persistent-session invariant tests: passed
