@@ -26,6 +26,11 @@ done < <(find config -type f -name '*.json' -print0)
 
 git diff --check
 
+if rg -n 'uses:[[:space:]]+[^#]+@v[0-9]+' .github/workflows; then
+  echo "SHA manifest check failed: mutable GitHub Action tag found" >&2
+  exit 1
+fi
+
 # Detect common provider/GitHub credential formats in tracked implementation files.
 # Fixtures, documentation and examples intentionally contain redaction test values.
 if git grep -nI -E '(nvapi-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})' -- \

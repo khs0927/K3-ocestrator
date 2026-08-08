@@ -31,6 +31,8 @@ example environment and placeholder paths.
 The watchdog tests confirm direct-secret precedence and root-only file fallback;
 the Compose healthcheck reads the mounted gateway Secret when no direct key is
 present.
+The validation script also rejects mutable GitHub Action tags; the current
+workflow SHAs are recorded in `docs/CI_SHA_MANIFEST.md`.
 
 ## Hosted evidence
 
