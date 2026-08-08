@@ -44,5 +44,7 @@ def test_systemd_recovery_templates_cover_gateway_and_ds2api():
     service = Path("deploy/k3-orchestrator-health-recover@.service").read_text(encoding="utf-8")
     timer = Path("deploy/k3-orchestrator-health-recover@.timer").read_text(encoding="utf-8")
     assert "Environment=SERVICE=%i" in service
+    assert "Environment=COMPOSE_ENV_FILE=/etc/k3-secrets/provider.env" in service
+    assert "Environment=GATEWAY_ENV_FILE=/etc/k3-secrets/gateway.env" in service
     assert "compose-health-recover.sh" in service
     assert "OnUnitActiveSec=1min" in timer

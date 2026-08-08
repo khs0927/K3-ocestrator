@@ -9,6 +9,7 @@ User=root
 WorkingDirectory=/opt/k3-ocestrator
 Environment=COMPOSE_FILE=/opt/k3-ocestrator/docker-compose.providers.yml
 Environment=COMPOSE_ENV_FILE=/etc/k3-secrets/provider.env
+Environment=GATEWAY_ENV_FILE=/etc/k3-secrets/gateway.env
 Environment=RECOVERY_STATE_FILE=/var/lib/k3-orchestrator/%i-recovery.last
 Environment=RECOVERY_LOCK_DIR=/var/lib/k3-orchestrator/.%i-recovery.lock
 Environment=SERVICE=%i

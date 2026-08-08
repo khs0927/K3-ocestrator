@@ -65,7 +65,7 @@ passwords in shell history or commit them:
 
 ```bash
 sudo install -d -o root -g root -m 700 /etc/k3-secrets
-for name in gateway-api-key ds2api-config.json ds2api-admin-key ds2api-jwt-secret ds2api-api-key; do
+for name in gateway-api-key ds2api-config.json ds2api-admin-key ds2api-jwt-secret ds2api-api-key provider.env gateway.env; do
   sudo install -o root -g root -m 600 /dev/null "/etc/k3-secrets/$name"
 done
 sudo stat -c '%U:%G %a %n' /etc/k3-secrets/*
@@ -76,6 +76,13 @@ config JSON Secret's `keys` array; it is the gateway-managed bearer key, not
 the DeepSeek account password. The config Secret contains the account/session
 material and is mounted only into DS2API. Provider API keys may use the
 corresponding `*_API_KEY_FILE` settings and must remain outside Git.
+Create `/etc/k3-secrets/provider.env` with the reviewed DS2API image digest and
+the five host secret-file paths used by Compose, and set
+`GATEWAY_ENV_FILE=/etc/k3-secrets/gateway.env` there. Keep provider API keys in
+the root-only `gateway.env` (or an equivalent root-only secret manager), with
+direct values blank when a provider is disabled. The recovery systemd template
+uses these exact files, so it does not silently fall back to a missing project
+`.env`.
 
 ## Docker Compose provider bundle
 
@@ -83,6 +90,7 @@ corresponding `*_API_KEY_FILE` settings and must remain outside Git.
 
 ```bash
 export DS2API_IMAGE=ghcr.io/your-org/ds2api-multi-provider:pinned-sha
+export GATEWAY_ENV_FILE=/etc/k3-secrets/gateway.env
 export GATEWAY_API_KEY_FILE=/etc/k3-secrets/gateway-api-key
 export DS2API_CONFIG_JSON_FILE=/etc/k3-secrets/ds2api-config.json
 export DS2API_ADMIN_KEY_FILE=/etc/k3-secrets/ds2api-admin-key
