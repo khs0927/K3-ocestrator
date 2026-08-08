@@ -30,7 +30,7 @@ discovery, and API_KEY_FILE direct-value precedence.
 - K3 implementation commit: `6ba240f`
 - DS2API config Secret PR: <https://github.com/khs0927/ds2api-multi-provider/pull/2>
 - DS2API local Go evidence: `go1.26.5 go test ./...` and `go vet ./...` passed;
-  its public fork currently reports no registered Actions workflows.
+  remote Quality Gates also passed: <https://github.com/khs0927/ds2api-multi-provider/actions/runs/31276324368>.
 - Kimi API live gate workflow: supports exact `kimi-k3` discovery and bounded
   synthetic chat using the `live-provider-gate` environment's `KIMI_API_KEY`.
 

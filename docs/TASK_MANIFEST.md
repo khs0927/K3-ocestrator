@@ -9,7 +9,7 @@ that implemented the change.
 | Central K3 orchestrator | task graph, checkpoint/state, final integration | `app/manager.py`, `app/providers.py`, PR #1 | complete for offline gate |
 | Compatibility researcher | K3, DS2API, NVIDIA GLM exact IDs and endpoint boundaries | `docs/PROVIDER_STRATEGY.md`, `docs/COMPATIBILITY.md` | complete |
 | Provider designer | common profile, discovery, circuit and bounded retry contract | `app/providers.py`, `app/models.py` | complete |
-| DS2API Go agent | DeepSeek-only upstream and Secret-file boundary | `ds2api-multi-provider` PR #1/#2 | code pushed; local `go test ./...` and `go vet ./...` pass; remote workflow registry unavailable |
+| DS2API Go agent | DeepSeek-only upstream and Secret-file boundary | `ds2api-multi-provider` PR #1/#2 | local Go test/vet and remote Quality Gates run `31276324368` pass |
 | K3 Python agent | ACP provider routing, DS2API fallback, K3 API/self-hosted profiles, MCP/API tools, stream metadata | commit `fd4edb3` | complete for offline gate |
 | Adversarial reviewer | retry storm, session pinning, alias misuse, empty output, secret leakage | failure-injection tests and review checklist | complete for offline gate |
 | QA agent | deterministic tests, imports, compile, exact-model mock gate, no-secret output | `docs/QA_REPORT.md` | complete for offline gate |
