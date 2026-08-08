@@ -63,3 +63,15 @@ def test_live_gate_fails_closed_on_exact_model_mismatch(monkeypatch, capsys) -> 
     payload = json.loads(capsys.readouterr().out)
     assert payload["error"] == "exact model ID was not returned by /v1/models"
     assert payload["model"] == "wrong-model"
+
+
+def test_live_gate_secret_file_fallback_and_direct_precedence(tmp_path, monkeypatch) -> None:
+    gate = _load_gate()
+    secret = tmp_path / "nvidia-key"
+    secret.write_text("file-key\n", encoding="utf-8")
+    monkeypatch.delenv("NVIDIA_API_KEY", raising=False)
+    monkeypatch.setenv("NVIDIA_API_KEY_FILE", str(secret))
+    assert gate.secret_from_env("NVIDIA_API_KEY") == "file-key"
+
+    monkeypatch.setenv("NVIDIA_API_KEY", "direct-key")
+    assert gate.secret_from_env("NVIDIA_API_KEY") == "direct-key"

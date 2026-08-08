@@ -457,7 +457,7 @@ class SessionManager:
                 good.append(
                     OrchestrationResult(
                         session_id=uuid.uuid4().hex,
-                        text=f"Subagent {role} failed: {result}",
+                        text=f"Subagent {role} failed: {redact_text(str(result))}",
                         stop_reason="error",
                         mode=request.mode,
                         model="unavailable",

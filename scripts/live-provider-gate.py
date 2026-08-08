@@ -18,6 +18,20 @@ DEFAULTS = {
 }
 
 
+def secret_from_env(name: str) -> str:
+    direct = os.getenv(name, "").strip()
+    if direct:
+        return direct
+    path = os.getenv(f"{name}_FILE", "").strip()
+    if not path:
+        return ""
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return handle.read().strip()
+    except (OSError, UnicodeError):
+        return ""
+
+
 def request_json(url: str, method: str = "GET", payload: dict | None = None, key: str = "") -> tuple[int, object]:
     headers = {"Accept": "application/json"}
     if key:
@@ -45,7 +59,7 @@ def main() -> int:
     default_base, default_model, key_name = DEFAULTS[args.provider]
     base = os.getenv(f"{args.provider.upper()}_BASE_URL", default_base).rstrip("/")
     model = args.model or os.getenv(f"{args.provider.upper()}_MODEL", default_model)
-    key = os.getenv(key_name, "").strip()
+    key = secret_from_env(key_name)
     if args.provider != "ds2api" and not key:
         print(json.dumps({"ok": False, "provider": args.provider, "error": "missing provider key"}))
         return 2

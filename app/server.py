@@ -382,7 +382,7 @@ async def chat_completions(
         try:
             result = await manager.run(orchestration)
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=str(exc)) from exc
+            raise HTTPException(status_code=502, detail=redact_text(str(exc))) from exc
         return {
             "id": completion_id,
             "object": "chat.completion",
