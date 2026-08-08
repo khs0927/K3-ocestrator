@@ -23,14 +23,16 @@ discovery, and API_KEY_FILE direct-value precedence.
 ## Hosted evidence
 
 - K3 PR #1: <https://github.com/khs0927/K3-ocestrator/pull/1>
-- Public Actions run: <https://github.com/khs0927/K3-ocestrator/actions/runs/31274383070>
-- PR Actions run: <https://github.com/khs0927/K3-ocestrator/actions/runs/31274384434>
+- Public Actions run: <https://github.com/khs0927/K3-ocestrator/actions/runs/31274737283>
+- PR Actions run: <https://github.com/khs0927/K3-ocestrator/actions/runs/31274739222>
 - Python 3.11: passed
 - Python 3.13: passed
-- K3 branch head: `9b4e9c8`
+- K3 branch head: `6ba240f`
 - DS2API config Secret PR: <https://github.com/khs0927/ds2api-multi-provider/pull/2>
 - DS2API local Go evidence: `go1.26.5 go test ./...` and `go vet ./...` passed;
   its public fork currently reports no registered Actions workflows.
+- Kimi API live gate workflow: supports exact `kimi-k3` discovery and bounded
+  synthetic chat using the `live-provider-gate` environment's `KIMI_API_KEY`.
 
 ## Negative/live boundary evidence
 
