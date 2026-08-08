@@ -11,6 +11,8 @@ from typing import Any, Literal
 import httpx
 from pydantic import BaseModel, Field, ValidationError
 
+from .security import redact_text
+
 
 ProviderTransport = Literal["oauth", "api", "web"]
 ProviderProtocol = Literal["kimi", "openai", "anthropic"]
@@ -451,7 +453,7 @@ class ProviderRegistry:
         state = self.states.setdefault(alias, ProviderRuntimeState())
         state.consecutive_failures += 1
         state.total_failures += 1
-        state.last_error = str(error)
+        state.last_error = redact_text(str(error))
         kind = self.classify_failure(error)
         if kind == "permanent":
             state.permanently_disabled = True
@@ -512,7 +514,7 @@ class ProviderRegistry:
         except (httpx.HTTPError, ValueError) as exc:
             profile.runtime_verified = False
             self.record_failure(alias, str(exc))
-            return {"alias": alias, "verified": False, "checks": checks, "reason": str(exc)}
+            return {"alias": alias, "verified": False, "checks": checks, "reason": redact_text(str(exc))}
 
         rows = payload.get("data", []) if isinstance(payload, dict) else payload
         model_ids = {

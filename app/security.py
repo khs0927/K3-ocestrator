@@ -1,13 +1,56 @@
 from __future__ import annotations
 
 import os
+import re
 import secrets
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 
 class PathSecurityError(ValueError):
     pass
+
+
+_SENSITIVE_TEXT_PATTERNS = (
+    (
+        re.compile(r"(?i)(\bauthorization[\"']?\s*[:=]\s*[\"']?(?:bearer\s+)?)[^\s,;}\]]+"),
+        r"\1[REDACTED]",
+    ),
+    (re.compile(r"(?i)(\bbearer\s+)[^\s,;}\]]+"), r"\1[REDACTED]"),
+    (
+        re.compile(
+            r"(?i)([\"']?(?:x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|secret|jwt[_-]?secret)[\"']?\s*[:=]\s*[\"']?)[^\"'\s,;}\]]+"
+        ),
+        r"\1[REDACTED]",
+    ),
+    (
+        re.compile(r"(?i)([?&](?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret|token)=)[^&\s]+"),
+        r"\1[REDACTED]",
+    ),
+    (re.compile(r"\bnvapi-[A-Za-z0-9_-]+"), "[REDACTED_API_KEY]"),
+    (re.compile(r"\bsk-[A-Za-z0-9_-]+"), "[REDACTED_API_KEY]"),
+)
+
+
+def redact_text(value: str) -> str:
+    """Remove common credential forms before text reaches logs or API errors."""
+    redacted = value
+    for pattern, replacement in _SENSITIVE_TEXT_PATTERNS:
+        redacted = pattern.sub(replacement, redacted)
+    return redacted
+
+
+def redact_payload(value: Any) -> Any:
+    """Recursively redact strings in structured audit/API payloads."""
+    if isinstance(value, str):
+        return redact_text(value)
+    if isinstance(value, dict):
+        return {key: redact_payload(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [redact_payload(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(redact_payload(item) for item in value)
+    return value
 
 
 def resolve_allowed_path(path: str | Path, roots: Iterable[Path], *, must_exist: bool = False) -> Path:

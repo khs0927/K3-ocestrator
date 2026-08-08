@@ -25,7 +25,7 @@ from .models import (
     SubagentRequest,
 )
 from .prompting import flatten_openai_messages
-from .security import verify_bearer
+from .security import redact_text, verify_bearer
 
 settings.prepare()
 manager = SessionManager(settings)
@@ -198,7 +198,7 @@ async def orchestrate(
         result = await manager.run(request)
         return result.model_dump()
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail=redact_text(str(exc))) from exc
 
 
 @app.post("/api/orchestrations/stream")
@@ -222,7 +222,7 @@ async def dispatch_subagent(
         result = await manager.dispatch_subagent(request)
         return result.model_dump()
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail=redact_text(str(exc))) from exc
 
 
 @app.post("/api/subagents/consensus")
@@ -234,7 +234,7 @@ async def consensus(
         result = await manager.consensus(request)
         return result.model_dump()
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail=redact_text(str(exc))) from exc
 
 
 @app.get("/internal/providers")
@@ -288,7 +288,7 @@ async def internal_dispatch_subagent(
     try:
         return (await manager.dispatch_subagent(request)).model_dump()
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail=redact_text(str(exc))) from exc
 
 
 @app.post("/internal/subagents/consensus")
@@ -300,7 +300,7 @@ async def internal_consensus(
     try:
         return (await manager.consensus(request)).model_dump()
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail=redact_text(str(exc))) from exc
 
 
 @app.get("/api/approvals")

@@ -24,7 +24,7 @@ from .models import (
 )
 from .prompting import build_task_prompt
 from .providers import ProviderProfile, ProviderRegistry
-from .security import resolve_allowed_path, write_text_atomic
+from .security import redact_text, resolve_allowed_path, write_text_atomic
 from .web_advisory import WebAdvisoryClient
 
 
@@ -372,7 +372,7 @@ class SessionManager:
                             "provider": profile.alias,
                             "upstream_model": profile.model,
                             "status": "failed",
-                            "error": str(exc),
+                            "error": redact_text(str(exc)),
                             "failure_kind": kind,
                             "elapsed": time.time() - started,
                         }
@@ -382,7 +382,7 @@ class SessionManager:
                         external_session_id=external_id,
                         provider=profile.alias,
                         role=request.role,
-                        error=str(exc),
+                        error=redact_text(str(exc)),
                         failure_kind=kind,
                     )
                     runtime = self.runtimes.pop(external_id, None)
@@ -399,7 +399,7 @@ class SessionManager:
                         break
                     break
         raise KimiRuntimeError(
-            f"All provider routes failed for role {request.role}: {last_error}; attempts={attempts}"
+            f"All provider routes failed for role {request.role}: {redact_text(str(last_error))}; attempts={attempts}"
         )
 
     async def dispatch_subagent(self, request: SubagentRequest) -> OrchestrationResult:
@@ -510,7 +510,7 @@ class SessionManager:
                     GatewayEvent(
                         event_type=EventType.error,
                         timestamp=time.time(),
-                        payload={"message": str(exc)},
+                        payload={"message": redact_text(str(exc))},
                     )
                 )
 

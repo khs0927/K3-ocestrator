@@ -5,7 +5,7 @@
 Executed in the K3 worktree:
 
 ```text
-./.venv/bin/python -m pytest -q                 PASS: 31 passed
+./.venv/bin/python -m pytest -q                 PASS: 33 passed
 ./.venv/bin/python -m compileall -q app browser_bridge scripts   PASS
 python3 -m json.tool config/provider-profiles.example.json       PASS
 python3 -m json.tool config/routes.example.json                  PASS
@@ -19,6 +19,8 @@ three-attempt bounds, 503 circuit behavior, 404/410 permanent model disable,
 secret-file binding, response reasoning/tool-call metadata, upstream model
 identity, numeric/HTTP-date `Retry-After` handling, Kimi API exact model
 discovery, and API_KEY_FILE direct-value precedence.
+The security boundary tests also verify recursive audit-payload redaction for
+Bearer, API-key, password, token, and header-shaped credential strings.
 
 ## Hosted evidence
 
@@ -28,6 +30,7 @@ discovery, and API_KEY_FILE direct-value precedence.
 - Python 3.11: passed
 - Python 3.13: passed
 - K3 implementation commit: `6ba240f`
+- Compose auth healthcheck fix: `556237d`
 - DS2API config Secret PR: <https://github.com/khs0927/ds2api-multi-provider/pull/2>
 - DS2API local Go evidence: `go1.26.5 go test ./...` and `go vet ./...` passed;
   remote Quality Gates also passed: <https://github.com/khs0927/ds2api-multi-provider/actions/runs/31276324368>.
