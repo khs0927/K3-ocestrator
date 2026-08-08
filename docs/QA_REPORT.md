@@ -34,11 +34,11 @@ present.
 ## Hosted evidence
 
 - K3 PR #1: <https://github.com/khs0927/K3-ocestrator/pull/1>
-- Public Actions run: <https://github.com/khs0927/K3-ocestrator/actions/runs/31274737283>
-- PR Actions run: <https://github.com/khs0927/K3-ocestrator/actions/runs/31274739222>
+- Public Actions run for head `ac06c7f`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31279491410>
+- PR Actions run for head `ac06c7f`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31279494056>
 - Python 3.11: passed
 - Python 3.13: passed
-- K3 implementation commit: `6ba240f`
+- K3 branch head after implementation and QA evidence update: `ac06c7f`
 - Compose auth healthcheck fix: `556237d`
 - Security/error-boundary and explicit-fallback tests: `fdd32fe` plus the current branch head
 - DS2API config Secret PR: <https://github.com/khs0927/ds2api-multi-provider/pull/2>
