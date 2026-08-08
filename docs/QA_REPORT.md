@@ -45,11 +45,11 @@ workflow SHAs are recorded in `docs/CI_SHA_MANIFEST.md`.
 ## Hosted evidence
 
 - K3 PR #1: <https://github.com/khs0927/K3-ocestrator/pull/1>
-- Public Actions run for implementation head `7a29e58`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31281967529>
-- PR Actions run for implementation head `7a29e58`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31281969116>
+- Public Actions run for implementation head `5eb21b4`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31282146631>
+- PR Actions run for implementation head `5eb21b4`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31282148836>
 - Python 3.11: passed
 - Python 3.13: passed
-- K3 implementation head covered by the evidence above: `7a29e58`
+- K3 implementation head covered by the evidence above: `5eb21b4`
 - Compose auth healthcheck fix: `556237d`
 - Security/error-boundary and explicit-fallback tests: `fdd32fe` plus the current branch head
 - DS2API config Secret PR: <https://github.com/khs0927/ds2api-multi-provider/pull/2>
