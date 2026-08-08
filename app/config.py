@@ -26,16 +26,23 @@ class Settings(BaseSettings):
     gateway_host: str = "127.0.0.1"
     gateway_port: int = 8790
     gateway_api_key: str = ""
+    gateway_api_key_file: Path | None = None
     mcp_internal_api_key: str = ""
+    mcp_internal_api_key_file: Path | None = None
 
     # API credentials are loaded from .env but are never written to logs.
     nvidia_api_key: str = ""
+    nvidia_api_key_file: Path | None = None
     kimi_api_key: str = ""
+    kimi_api_key_file: Path | None = None
     deepseek_api_key: str = ""
+    deepseek_api_key_file: Path | None = None
     zai_api_key: str = ""
+    zai_api_key_file: Path | None = None
     k3_self_hosted_enabled: bool = False
     k3_self_hosted_base_url: str = "http://127.0.0.1:8000/v1"
     k3_self_hosted_api_key: str = ""
+    k3_self_hosted_api_key_file: Path | None = None
     ds2api_enabled: bool = False
     ds2api_base_url: str = "http://127.0.0.1:5001/v1"
     ds2api_api_key: str = ""
@@ -99,9 +106,38 @@ class Settings(BaseSettings):
     state_file: Path = Path("./data/gateway-state.json")
 
     def resolved_ds2api_api_key(self) -> str:
-        return self.ds2api_api_key.strip() or _read_secret_file(self.ds2api_api_key_file)
+        return self.resolved_secret(self.ds2api_api_key, self.ds2api_api_key_file)
+
+    @staticmethod
+    def resolved_secret(value: str, secret_file: Path | None = None) -> str:
+        return value.strip() or _read_secret_file(secret_file)
+
+    def resolved_gateway_api_key(self) -> str:
+        return self.resolved_secret(self.gateway_api_key, self.gateway_api_key_file)
+
+    def resolved_mcp_internal_api_key(self) -> str:
+        return self.resolved_secret(self.mcp_internal_api_key, self.mcp_internal_api_key_file)
+
+    def resolved_nvidia_api_key(self) -> str:
+        return self.resolved_secret(self.nvidia_api_key, self.nvidia_api_key_file)
+
+    def resolved_kimi_api_key(self) -> str:
+        return self.resolved_secret(self.kimi_api_key, self.kimi_api_key_file)
+
+    def resolved_deepseek_api_key(self) -> str:
+        return self.resolved_secret(self.deepseek_api_key, self.deepseek_api_key_file)
+
+    def resolved_zai_api_key(self) -> str:
+        return self.resolved_secret(self.zai_api_key, self.zai_api_key_file)
+
+    def resolved_k3_self_hosted_api_key(self) -> str:
+        return self.resolved_secret(self.k3_self_hosted_api_key, self.k3_self_hosted_api_key_file)
 
     def prepare(self) -> None:
+        # Resolve only into process memory; never write these values back to
+        # `.env`, provider JSON, state, or audit output. Direct values win.
+        self.gateway_api_key = self.resolved_gateway_api_key()
+        self.mcp_internal_api_key = self.resolved_mcp_internal_api_key()
         self.kimi_code_home.mkdir(parents=True, exist_ok=True)
         self.default_workspace.mkdir(parents=True, exist_ok=True)
         self.audit_log.parent.mkdir(parents=True, exist_ok=True)

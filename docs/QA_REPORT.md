@@ -5,7 +5,7 @@
 Executed in the K3 worktree:
 
 ```text
-./.venv/bin/python -m pytest -q                 PASS: 37 passed
+./.venv/bin/python -m pytest -q                 PASS: 40 passed
 ./.venv/bin/python -m compileall -q app browser_bridge scripts   PASS
 python3 -m json.tool config/provider-profiles.example.json       PASS
 python3 -m json.tool config/routes.example.json                  PASS
@@ -24,6 +24,12 @@ Bearer, API-key, password, token, and header-shaped credential strings.
 The live-gate contract tests exercise the DS2API health/readiness/model probes,
 ten synthetic chat iterations, exact-model fail-closed behavior, and explicit
 NVIDIA DeepSeek Flash to DS2API candidate ordering.
+The settings/Compose tests cover root-only gateway, DS2API admin/JWT/API-key
+secret-file wiring and successful `docker compose config` rendering with the
+example environment and placeholder paths.
+The watchdog tests confirm direct-secret precedence and root-only file fallback;
+the Compose healthcheck reads the mounted gateway Secret when no direct key is
+present.
 
 ## Hosted evidence
 

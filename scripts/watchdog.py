@@ -12,6 +12,19 @@ import urllib.request
 from pathlib import Path
 
 
+def secret_from_env(name: str) -> str:
+    direct = os.getenv(name, "").strip()
+    if direct:
+        return direct
+    path = os.getenv(f"{name}_FILE", "").strip()
+    if not path:
+        return ""
+    try:
+        return Path(path).read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeError):
+        return ""
+
+
 def check_url(url: str, timeout: float, headers: dict[str, str] | None = None) -> dict[str, object]:
     request = urllib.request.Request(url, headers=headers or {"Accept": "application/json"})
     try:
@@ -24,7 +37,7 @@ def check_url(url: str, timeout: float, headers: dict[str, str] | None = None) -
 
 def run_once(output_path: Path, timeout: float) -> int:
     gateway = os.getenv("WATCHDOG_GATEWAY_URL", "http://127.0.0.1:8790").rstrip("/")
-    gateway_key = os.getenv("GATEWAY_API_KEY", "").strip()
+    gateway_key = secret_from_env("GATEWAY_API_KEY")
     gateway_headers = {"Accept": "application/json"}
     if gateway_key:
         gateway_headers["Authorization"] = f"Bearer {gateway_key}"
@@ -36,7 +49,7 @@ def run_once(output_path: Path, timeout: float) -> int:
     ds2api = os.getenv("DS2API_BASE_URL", "").rstrip("/")
     if ds2api_enabled and ds2api:
         root = ds2api.removesuffix("/v1")
-        ds2api_key = os.getenv("DS2API_API_KEY", "").strip()
+        ds2api_key = secret_from_env("DS2API_API_KEY")
         headers = {"Accept": "application/json"}
         if ds2api_key:
             headers["Authorization"] = f"Bearer {ds2api_key}"

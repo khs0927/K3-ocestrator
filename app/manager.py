@@ -53,11 +53,11 @@ class SessionManager:
 
     def _apply_runtime_overrides(self) -> None:
         secret_values = {
-            "NVIDIA_API_KEY": self.settings.nvidia_api_key,
-            "KIMI_API_KEY": self.settings.kimi_api_key,
-            "DEEPSEEK_API_KEY": self.settings.deepseek_api_key,
-            "ZAI_API_KEY": self.settings.zai_api_key,
-            "K3_SELF_HOSTED_API_KEY": self.settings.k3_self_hosted_api_key,
+            "NVIDIA_API_KEY": self.settings.resolved_nvidia_api_key(),
+            "KIMI_API_KEY": self.settings.resolved_kimi_api_key(),
+            "DEEPSEEK_API_KEY": self.settings.resolved_deepseek_api_key(),
+            "ZAI_API_KEY": self.settings.resolved_zai_api_key(),
+            "K3_SELF_HOSTED_API_KEY": self.settings.resolved_k3_self_hosted_api_key(),
             "DS2API_API_KEY": self.settings.resolved_ds2api_api_key(),
             "DEEPSEEK_WEB_BRIDGE_KEY": self.settings.deepseek_web_bridge_key,
             "GLM_WEB_BRIDGE_KEY": self.settings.glm_web_bridge_key,
@@ -187,7 +187,7 @@ class SessionManager:
             "PYTHONPATH": str(project_root),
             "GATEWAY_HOST": self.settings.gateway_host,
             "GATEWAY_PORT": str(self.settings.gateway_port),
-            "MCP_INTERNAL_API_KEY": self.settings.mcp_internal_api_key,
+            "MCP_INTERNAL_API_KEY": self.settings.resolved_mcp_internal_api_key(),
         }
         return {
             "name": "multi-model-orchestrator",

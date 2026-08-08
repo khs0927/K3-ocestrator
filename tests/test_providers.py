@@ -220,6 +220,32 @@ def test_settings_secret_is_bound_not_exported(tmp_path: Path, monkeypatch):
     assert manager.registry.get("nvidia-glm-5.2").available()
 
 
+def test_provider_and_gateway_secret_files_are_resolved_without_export(tmp_path: Path, monkeypatch):
+    kimi_secret = tmp_path / "kimi-key"
+    gateway_secret = tmp_path / "gateway-key"
+    kimi_secret.write_text("managed-kimi-key\n", encoding="utf-8")
+    gateway_secret.write_text("managed-gateway-key\n", encoding="utf-8")
+    monkeypatch.delenv("KIMI_API_KEY", raising=False)
+    monkeypatch.delenv("GATEWAY_API_KEY", raising=False)
+    settings = Settings(
+        _env_file=None,
+        kimi_api_key_file=kimi_secret,
+        gateway_api_key_file=gateway_secret,
+        default_workspace=tmp_path / "workspace",
+        kimi_code_home=tmp_path / "kimi-home",
+        audit_log=tmp_path / "audit.jsonl",
+        state_file=tmp_path / "state.json",
+        provider_profiles_file=tmp_path / "profiles.json",
+        routing_file=tmp_path / "routes.json",
+    )
+    settings.prepare()
+    manager = SessionManager(settings)
+    assert settings.gateway_api_key == "managed-gateway-key"
+    assert manager.registry.get("kimi-k3-api").api_key() == "managed-kimi-key"
+    assert "KIMI_API_KEY" not in os.environ
+    assert "GATEWAY_API_KEY" not in os.environ
+
+
 def test_ds2api_secret_file_is_bound_without_environment_export(tmp_path: Path, monkeypatch):
     secret = tmp_path / "ds2api-api-key"
     secret.write_text("managed-key\n", encoding="utf-8")

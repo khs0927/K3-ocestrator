@@ -21,7 +21,7 @@ def _base_url() -> str:
 
 
 def _headers() -> dict[str, str]:
-    key = settings.mcp_internal_api_key.strip()
+    key = settings.resolved_mcp_internal_api_key()
     return {"Authorization": f"Bearer {key}"} if key else {}
 
 

@@ -5,7 +5,7 @@ Version: 0.6.0
 ## Completed in the build environment
 
 - Python source compilation: passed
-- Unit tests: 27 passed
+- Unit tests: 40 passed
 - plan/review/execute/yolo policy tests: passed
 - workspace path-boundary and symlink-resolution tests: passed
 - prompt and persistent-session invariant tests: passed
@@ -22,6 +22,10 @@ Version: 0.6.0
 - GitHub Actions passed on Python 3.11 and Python 3.13
 
 The deterministic suite includes a mocked DS2API gate that checks `/healthz`, `/readyz`, and `/v1/models` and refuses activation when the exact model ID is absent.
+
+The provider Compose template also renders successfully with
+`GATEWAY_ENV_FILE=.env.example`, a pinned-image placeholder, and placeholder
+Secret-file paths; real Secret contents and containers remain operator-side.
 
 ## Container baseline verification
 

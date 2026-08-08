@@ -1,7 +1,8 @@
 # Production-oriented provider bundle.
 # Required deployment inputs (kept outside Git):
-#   DS2API_IMAGE, DS2API_CONFIG_JSON_FILE, DS2API_ADMIN_KEY_FILE,
-#   DS2API_API_KEY_FILE, .env with Kimi/NVIDIA/Z.AI settings.
+#   DS2API_IMAGE, GATEWAY_API_KEY_FILE, DS2API_CONFIG_JSON_FILE,
+#   DS2API_ADMIN_KEY_FILE, DS2API_JWT_SECRET_FILE, DS2API_API_KEY_FILE,
+#   .env with Kimi/NVIDIA/Z.AI settings.
 services:
   gateway:
     build:
@@ -17,7 +18,7 @@ services:
     ports:
       - "127.0.0.1:8790:8790"
     env_file:
-      - .env
+      - ${GATEWAY_ENV_FILE:-.env}
     environment:
       GATEWAY_HOST: 0.0.0.0
       GATEWAY_PORT: 8790
@@ -28,12 +29,18 @@ services:
       DS2API_ENABLED: "true"
       DS2API_BASE_URL: http://ds2api:5001/v1
       DS2API_API_KEY_FILE: /run/secrets/ds2api_api_key
+      GATEWAY_API_KEY_FILE: /run/secrets/gateway_api_key
       ALLOW_YOLO_MODE: "false"
     depends_on:
       ds2api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS -H 'Authorization: Bearer $${GATEWAY_API_KEY}' http://127.0.0.1:8790/health >/dev/null"]
+      test:
+        - CMD-SHELL
+        - >-
+          key="$${GATEWAY_API_KEY}";
+          if [ -z "$${key}" ] && [ -r "$${GATEWAY_API_KEY_FILE}" ]; then key="$$(cat "$${GATEWAY_API_KEY_FILE}")"; fi;
+          curl -fsS -H "Authorization: Bearer $${key}" http://127.0.0.1:8790/health >/dev/null
       interval: 30s
       timeout: 5s
       retries: 3
@@ -44,6 +51,7 @@ services:
       - ./data/provider-state:/state:rw
       - ./config:/opt/gateway/config:ro
     secrets:
+      - gateway_api_key
       - ds2api_api_key
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=256m
@@ -59,6 +67,7 @@ services:
       DS2API_CONFIG_JSON_FILE: /run/secrets/ds2api_config_json
       DS2API_ENV_WRITEBACK: "0"
       DS2API_ADMIN_KEY_FILE: /run/secrets/ds2api_admin_key
+      DS2API_JWT_SECRET_FILE: /run/secrets/ds2api_jwt_secret
       DS2API_CONFIG_PATH: /data/config.json
       TZ: Asia/Seoul
       LOG_LEVEL: INFO
@@ -73,6 +82,7 @@ services:
     secrets:
       - ds2api_config_json
       - ds2api_admin_key
+      - ds2api_jwt_secret
 
   watchdog:
     build:
@@ -83,10 +93,12 @@ services:
     restart: unless-stopped
     command: ["python", "scripts/watchdog.py", "--heartbeat", "/state/watchdog-heartbeat.json"]
     env_file:
-      - .env
+      - ${GATEWAY_ENV_FILE:-.env}
     environment:
       WATCHDOG_GATEWAY_URL: http://gateway:8790
+      GATEWAY_API_KEY_FILE: /run/secrets/gateway_api_key
       DS2API_ENABLED: "true"
+      DS2API_API_KEY_FILE: /run/secrets/ds2api_api_key
       DS2API_BASE_URL: http://ds2api:5001/v1
       WATCHDOG_HEARTBEAT: /state/watchdog-heartbeat.json
     depends_on:
@@ -96,6 +108,9 @@ services:
         condition: service_healthy
     volumes:
       - ./data/provider-state:/state:rw
+    secrets:
+      - gateway_api_key
+      - ds2api_api_key
 
   qa:
     profiles: [qa]
@@ -109,9 +124,13 @@ services:
       - .:/opt/gateway:ro
 
 secrets:
+  gateway_api_key:
+    file: ${GATEWAY_API_KEY_FILE:?set GATEWAY_API_KEY_FILE to a root-only gateway key secret}
   ds2api_config_json:
     file: ${DS2API_CONFIG_JSON_FILE:?set DS2API_CONFIG_JSON_FILE to a root-only config secret}
   ds2api_admin_key:
     file: ${DS2API_ADMIN_KEY_FILE:?set DS2API_ADMIN_KEY_FILE to a root-only admin secret}
+  ds2api_jwt_secret:
+    file: ${DS2API_JWT_SECRET_FILE:?set DS2API_JWT_SECRET_FILE to a root-only JWT secret}
   ds2api_api_key:
     file: ${DS2API_API_KEY_FILE:?set DS2API_API_KEY_FILE to a root-only managed API key}

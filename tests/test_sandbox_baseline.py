@@ -21,3 +21,16 @@ def test_docker_context_excludes_secrets_and_runtime_state():
     assert "data" in text
     assert "workspace" in text
     assert "config/provider-profiles.json" in text
+
+
+def test_provider_compose_wires_root_only_gateway_and_ds2api_secrets():
+    text = Path("docker-compose.providers.yml").read_text(encoding="utf-8")
+    assert "GATEWAY_API_KEY_FILE: /run/secrets/gateway_api_key" in text
+    assert "DS2API_JWT_SECRET_FILE: /run/secrets/ds2api_jwt_secret" in text
+    assert "GATEWAY_API_KEY_FILE: /run/secrets/gateway_api_key" in text
+    assert "DS2API_API_KEY_FILE: /run/secrets/ds2api_api_key" in text
+    assert "cat \"$${GATEWAY_API_KEY_FILE}\"" in text
+    assert "gateway_api_key:" in text
+    assert "ds2api_jwt_secret:" in text
+    assert "GATEWAY_API_KEY_FILE:?set" in text
+    assert "DS2API_JWT_SECRET_FILE:?set" in text

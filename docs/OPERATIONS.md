@@ -59,12 +59,14 @@ The response must report `verified: true` and the expected `deepseek-v4-flash` m
 
 ## Docker Compose provider bundle
 
-`docker-compose.providers.yml` keeps the gateway, DS2API, QA runner and watchdog on a private Compose network. The gateway and DS2API are exposed only through loopback; the DS2API admin surface is not published. Before starting it, provide a pinned DS2API fork image and root-only secret files:
+`docker-compose.providers.yml` keeps the gateway, DS2API, QA runner and watchdog on a private Compose network. The gateway and DS2API are exposed only through loopback; the DS2API admin surface is not published. Before starting it, provide a pinned DS2API fork image and root-only secret files for both services:
 
 ```bash
 export DS2API_IMAGE=ghcr.io/your-org/ds2api-multi-provider:pinned-sha
+export GATEWAY_API_KEY_FILE=/etc/k3-secrets/gateway-api-key
 export DS2API_CONFIG_JSON_FILE=/etc/k3-secrets/ds2api-config.json
 export DS2API_ADMIN_KEY_FILE=/etc/k3-secrets/ds2api-admin-key
+export DS2API_JWT_SECRET_FILE=/etc/k3-secrets/ds2api-jwt-secret
 export DS2API_API_KEY_FILE=/etc/k3-secrets/ds2api-api-key
 docker compose -f docker-compose.providers.yml up -d
 docker compose -f docker-compose.providers.yml --profile qa run --rm qa
