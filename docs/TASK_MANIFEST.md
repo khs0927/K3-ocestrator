@@ -9,8 +9,8 @@ that implemented the change.
 | Central K3 orchestrator | task graph, checkpoint/state, final integration | `app/manager.py`, `app/providers.py`, PR #1 | complete for offline gate |
 | Compatibility researcher | K3, DS2API, NVIDIA GLM exact IDs and endpoint boundaries | `docs/PROVIDER_STRATEGY.md`, `docs/COMPATIBILITY.md` | complete |
 | Provider designer | common profile, discovery, circuit and bounded retry contract | `app/providers.py`, `app/models.py` | complete |
-| DS2API Go agent | DeepSeek-only upstream and Secret-file boundary | `ds2api-multi-provider` PR #2, head `291ed32` | local Go test/vet and remote Quality Gates run `31279315631` pass |
-| K3 Python agent | ACP provider routing, DS2API fallback, K3 API/self-hosted profiles, MCP/API tools, stream metadata | implementation head `b8ea968` | complete for offline gate |
+| DS2API Go agent | DeepSeek-only upstream and Secret-file boundary | `ds2api-multi-provider` PR #2, head `7b0cdf2` | local Go test/vet and remote Quality Gates run `31281177776` pass |
+| K3 Python agent | ACP provider routing, DS2API fallback, K3 API/self-hosted profiles, MCP/API tools, stream metadata | implementation head `03ac7e5` | complete for offline gate |
 | Adversarial reviewer | retry storm, session pinning, alias misuse, empty output, secret leakage | failure-injection and recursive redaction tests; review checklist | complete for offline gate |
 | QA agent | deterministic tests, imports, compile, exact-model mock gate, no-secret output | `docs/QA_REPORT.md` | complete for offline gate |
 | Remote SRE agent | Compose, private network, Secret files, watchdog, restart policy | `docker-compose.providers.yml`, `scripts/watchdog.py` | template complete; VPS unverified |

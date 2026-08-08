@@ -43,17 +43,17 @@ workflow SHAs are recorded in `docs/CI_SHA_MANIFEST.md`.
 ## Hosted evidence
 
 - K3 PR #1: <https://github.com/khs0927/K3-ocestrator/pull/1>
-- Public Actions run for implementation head `0f8dd10`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31280427961>
-- PR Actions run for implementation head `0f8dd10`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31280429595>
+- Public Actions run for implementation head `03ac7e5`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31281077228>
+- PR Actions run for implementation head `03ac7e5`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31281079963>
 - Python 3.11: passed
 - Python 3.13: passed
-- K3 implementation head covered by the evidence above: `0f8dd10`
+- K3 implementation head covered by the evidence above: `03ac7e5`
 - Compose auth healthcheck fix: `556237d`
 - Security/error-boundary and explicit-fallback tests: `fdd32fe` plus the current branch head
 - DS2API config Secret PR: <https://github.com/khs0927/ds2api-multi-provider/pull/2>
-- DS2API latest Secret-file consistency commit: `291ed32`
+- DS2API latest Secret-file consistency commit: `7b0cdf2`
 - DS2API local Go evidence: `go1.26.5 go test ./...` and `go vet ./...` passed;
-  remote Quality Gates also passed: <https://github.com/khs0927/ds2api-multi-provider/actions/runs/31279315631>.
+  remote Quality Gates also passed: <https://github.com/khs0927/ds2api-multi-provider/actions/runs/31281177776>.
 - Kimi API live gate workflow: supports exact `kimi-k3` discovery and bounded
   synthetic chat using the `live-provider-gate` environment's `KIMI_API_KEY`.
 
