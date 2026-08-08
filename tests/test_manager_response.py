@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -110,6 +111,87 @@ async def test_run_limits_total_attempts_and_retries_one_rate_limit(tmp_path):
     assert result.provider == "second"
     assert calls == ["first", "first", "second"]
     assert len(result.attempts) == 3
+
+
+@pytest.mark.asyncio
+async def test_deepseek_flash_fails_over_from_nvidia_to_ds2api(tmp_path):
+    manager = object.__new__(SessionManager)
+    manager.settings = SimpleNamespace(max_route_attempts=3)
+    manager.registry = ProviderRegistry.load()
+    nvidia = manager.registry.get("nvidia-deepseek-v4-flash")
+    nvidia.bind_api_key("nv-test")
+    nvidia.runtime_verified = True
+    ds2api = manager.registry.get("ds2api-deepseek-v4-flash")
+    ds2api.enabled = True
+    ds2api.runtime_verified = True
+    manager._candidate_profiles = lambda _request: manager.registry.candidates("fast")
+    manager._provider_locks = {
+        nvidia.alias: asyncio.Semaphore(1),
+        ds2api.alias: asyncio.Semaphore(1),
+    }
+
+    async def no_interval(_profile):
+        return None
+
+    manager._respect_min_interval = no_interval
+    manager.audit = SimpleNamespace(write=lambda *args, **kwargs: None)
+    manager.runtimes = {}
+    manager.session_meta = {}
+    manager._save_state = lambda: None
+    calls: list[str] = []
+
+    async def fake_run(_request, profile, _task_prompt, _external_id):
+        calls.append(profile.alias)
+        if profile.alias == nvidia.alias:
+            raise KimiRuntimeError("503 overloaded")
+        return OrchestrationResult(
+            session_id="session",
+            text="fallback ok",
+            stop_reason="end_turn",
+            mode=OrchestrationMode.review,
+            model=profile.alias,
+            provider=profile.alias,
+            role="fast",
+            upstream_model=profile.model,
+        )
+
+    manager._run_profile = fake_run
+    result = await manager.run(
+        OrchestrationRequest(
+            prompt="test DeepSeek Flash fallback",
+            cwd=str(tmp_path),
+            mode=OrchestrationMode.review,
+            role="fast",
+            allow_fallback=True,
+        )
+    )
+
+    assert result.provider == ds2api.alias
+    assert result.upstream_model == "deepseek-v4-flash"
+    assert calls == [nvidia.alias, ds2api.alias]
+    assert len(result.attempts) == 2
+
+
+def test_explicit_nvidia_flash_keeps_ds2api_adjacent_without_fast_role():
+    manager = object.__new__(SessionManager)
+    manager.settings = SimpleNamespace(default_role="orchestrator")
+    manager.registry = ProviderRegistry.load()
+    nvidia = manager.registry.get("nvidia-deepseek-v4-flash")
+    nvidia.bind_api_key("nv-test")
+    nvidia.runtime_verified = True
+    ds2api = manager.registry.get("ds2api-deepseek-v4-flash")
+    ds2api.enabled = True
+    ds2api.runtime_verified = True
+
+    candidates = manager._candidate_profiles(
+        OrchestrationRequest(
+            prompt="test",
+            model=nvidia.alias,
+            allow_fallback=True,
+        )
+    )
+
+    assert [item.alias for item in candidates[:2]] == [nvidia.alias, ds2api.alias]
 
 
 async def _completed(value=None):

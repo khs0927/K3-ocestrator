@@ -141,7 +141,18 @@ class SessionManager:
                 )
             if request.allow_fallback:
                 tail = self.registry.candidates(request.role, request.preferred_models or None)
-                return [profile, *[item for item in tail if item.alias != profile.alias]]
+                # DeepSeek Flash has a provider-specific emergency path. Keep it
+                # adjacent to the explicit NVIDIA choice even when callers omit
+                # the `fast`/`coder` role and use the default orchestrator role.
+                if profile.alias == "nvidia-deepseek-v4-flash" and not request.preferred_models:
+                    tail = [*self.registry.candidates("fast"), *tail]
+                seen = {profile.alias}
+                ordered_tail = []
+                for item in tail:
+                    if item.alias not in seen:
+                        seen.add(item.alias)
+                        ordered_tail.append(item)
+                return [profile, *ordered_tail]
             return [profile]
         preferred = request.preferred_models or None
         profiles = self.registry.candidates(request.role or self.settings.default_role, preferred)
