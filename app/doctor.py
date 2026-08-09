@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .config import settings
+from .config import kimi_oauth_credentials_present, settings
 from .providers import ProviderRegistry
 
 
@@ -20,8 +20,8 @@ def _version(name: str) -> str | None:
         return None
 
 
-def _masked_secret_state(value: str) -> str:
-    value = value.strip()
+def _masked_secret_state(value: str | None) -> str:
+    value = (value or "").strip()
     if not value:
         return "missing"
     if value.startswith("CHANGE_"):
@@ -69,6 +69,9 @@ def main() -> int:
         "gateway_version": __version__,
         "kimi_command": kimi,
         "kimi_code_home": str(settings.kimi_code_home.resolve()),
+        "kimi_oauth_session": (
+            "configured" if kimi_oauth_credentials_present(settings.kimi_code_home) else "missing"
+        ),
         "default_workspace": str(settings.default_workspace.resolve()),
         "gateway": {
             "host": settings.gateway_host,

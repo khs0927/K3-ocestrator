@@ -130,6 +130,8 @@ dispatch_subagent(
 K3 gateway는 DS2API 계열 점검 클라이언트가 사용하는 `/healthz`와 `/readyz`도
 제공하며, smoke 스크립트는 응답 본문이나 자격 증명을 출력하지 않고
 `kimi-k3 → ds2api-kimi-k3 → k3` 경로만 확인합니다.
+`doctor`와 `/readyz`는 CLI 설치만으로 로그인 완료로 판단하지 않고,
+Kimi Code의 로컬 `credentials/*.json` 존재 여부를 메타데이터로만 확인합니다.
 
 > **K3 이용 조건:** `k3-256k`와 `k3`는 Kimi Code Moderato 이상에서 사용할 수 있습니다. `k3`의 최대 1M 컨텍스트는 Allegretto 이상에서 열립니다. 권한이 없거나 할당량이 소진되어 401이 반환되면, 게이트웨이는 새 요청에서 NVIDIA/공식 API 대체 경로로 전환합니다. 모델이나 reasoning effort를 바꿀 때는 캐시 손실을 피하도록 새 세션을 사용하세요.
 

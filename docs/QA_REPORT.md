@@ -5,7 +5,7 @@
 Executed in the K3 worktree:
 
 ```text
-./.venv/bin/python -m pytest -q                 PASS: 79 passed
+./.venv/bin/python -m pytest -q                 PASS: 82 passed
 ./scripts/validate.sh                           PASS: validation passed
 ./.venv/bin/python -m compileall -q app browser_bridge scripts   PASS
 python3 -m json.tool config/provider-profiles.example.json       PASS
@@ -49,7 +49,9 @@ resolves to the official OAuth-backed `k3` runtime, is advertised by `/v1/models
 and reaches the MCP/OpenAI request path without treating K3 as a DeepSeek DS2API
 model. The DS2API front-door compatibility test also covers `/healthz` and
 `/readyz`; the post-login smoke helper validates the exact catalog and one bounded
-chat without printing response content or credentials.
+chat without printing response content or credentials. The doctor/readiness tests
+verify that an installed Kimi CLI is not treated as logged in until the
+metadata-only OAuth credentials check succeeds.
 The settings/Compose tests cover root-only gateway, DS2API admin/JWT/API-key
 secret-file wiring and successful `docker compose config` rendering with the
 example environment and placeholder paths.

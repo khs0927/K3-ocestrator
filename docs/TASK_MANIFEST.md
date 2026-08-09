@@ -10,7 +10,7 @@ that implemented the change.
 | Compatibility researcher | K3, DS2API, NVIDIA GLM exact IDs and endpoint boundaries | `docs/PROVIDER_STRATEGY.md`, `docs/COMPATIBILITY.md` | complete |
 | Provider designer | common profile, discovery, circuit and bounded retry contract | `app/providers.py`, `app/models.py` | complete |
 | DS2API Go agent | DeepSeek-only upstream and Secret-file boundary | `ds2api-multi-provider` PR #2, merged `8c65bd2` | local Go test/vet and post-merge Quality Gates run `31282317212` pass |
-| K3 Python agent | ACP provider routing, K3 OAuth/DS2API-compatible model name, DS2API fallback, K3 API/self-hosted profiles, MCP/API tools, stream metadata | `ds2api-kimi-k3`, request alias `kimi-k3`, 79 local tests | implementation merged; front-door/alias smoke follow-up in review |
+| K3 Python agent | ACP provider routing, K3 OAuth/DS2API-compatible model name, DS2API fallback, K3 API/self-hosted profiles, MCP/API tools, stream metadata | `ds2api-kimi-k3`, request alias `kimi-k3`, 82 local tests | front-door/alias smoke merged; login-state gate follow-up in review |
 | Adversarial reviewer | retry storm, session pinning, alias misuse, empty output, secret leakage | failure-injection and recursive redaction tests; review checklist | complete for offline gate |
 | QA agent | deterministic tests, imports, compile, exact-model mock gate, no-secret output | `docs/QA_REPORT.md` | complete for offline gate |
 | Remote SRE agent | Compose, private network, Secret files, watchdog, restart policy | `docker-compose.providers.yml`, `scripts/watchdog.py` | template complete; VPS unverified |
