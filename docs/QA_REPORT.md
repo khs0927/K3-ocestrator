@@ -57,20 +57,21 @@ workflow SHAs are recorded in `docs/CI_SHA_MANIFEST.md`.
 
 ## Hosted evidence
 
-- K3 PR #1: <https://github.com/khs0927/K3-ocestrator/pull/1>
-- Public Actions run for implementation head `5eb21b4`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31282146631>
-- PR Actions run for implementation head `5eb21b4`: <https://github.com/khs0927/K3-ocestrator/actions/runs/31282148836>
+- K3 hardening PR #5: <https://github.com/khs0927/K3-ocestrator/pull/5>
+- K3 hardening head `6903ed0`; push CI: <https://github.com/khs0927/K3-ocestrator/actions/runs/31317890602>
+- K3 hardening PR CI: <https://github.com/khs0927/K3-ocestrator/actions/runs/31317809201>
+- K3 hardening merge commit `3dffc85`; post-merge main CI: <https://github.com/khs0927/K3-ocestrator/actions/runs/31318345818>
 - Python 3.11: passed
 - Python 3.13: passed
-- K3 implementation head covered by the evidence above: `5eb21b4`
-- Compose auth healthcheck fix: `556237d`
-- Security/error-boundary and explicit-fallback tests: `fdd32fe` plus the current branch head
-- DS2API config Secret PR: <https://github.com/khs0927/ds2api-multi-provider/pull/2>
-- DS2API latest Secret-file consistency commit: `7b0cdf2`
-- DS2API local Go evidence: `go1.26.5 go test ./...` and `go vet ./...` passed;
-  remote Quality Gates also passed: <https://github.com/khs0927/ds2api-multi-provider/actions/runs/31281177776>.
+- DS2API config Secret PR #2 is merged at `8c65bd2`: <https://github.com/khs0927/ds2api-multi-provider/pull/2>
+- DS2API post-merge Quality Gates passed: <https://github.com/khs0927/ds2api-multi-provider/actions/runs/31282317212>
+- DS2API local Go evidence: `go1.26.5 go test ./...` and `go vet ./...` passed.
 - Kimi API live gate workflow: supports exact `kimi-k3` discovery and bounded
   synthetic chat using the `live-provider-gate` environment's `KIMI_API_KEY`.
+
+The hosted CI evidence above is offline/static CI evidence. The manual
+`live-provider-gate` workflow has not been run because its required provider
+secrets and DS2API endpoint variable are not configured.
 
 ## Negative/live boundary evidence
 
