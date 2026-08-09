@@ -17,6 +17,7 @@ Multi-Model Orchestrator Gateway
                     ▼
 Official Kimi Code coding-agent runtime
   ├─ Kimi K3 OAuth       : 메인 오케스트레이터·실제 수정
+  ├─ K3 DS2API 호환명    : `kimi-k3` MCP/OpenAI 요청명으로 같은 OAuth 세션 호출
   ├─ NVIDIA DeepSeek V4  : 빠른 코딩·테스트·검토
   ├─ DS2API DeepSeek V4  : NVIDIA 장애 시 선택적 로컬 fallback
   ├─ NVIDIA GLM-5.2      : 아키텍처·긴 문맥·검토
@@ -36,7 +37,7 @@ Kimi Code는 OpenAI·Anthropic 호환 공급자와 임시 `KIMI_MODEL_*` 모델 
 - **최종 검토/보안:** `NVIDIA DeepSeek V4 Pro → NVIDIA GLM-5.2 → K3 → DeepSeek 공식`
 - **웹 자문:** API 경로가 모두 실패한 경우 `plan/review/research`에만 사용
 
-NVIDIA 엔드포인트는 프로토타입·무료 우선 경로이므로 영구 가용성을 가정하지 않습니다. 429·503·용량 오류가 발생하면 공급자 서킷을 잠시 열고 다음 경로로 자동 전환합니다. DS2API는 기본 비활성화이며 DeepSeek 전용입니다. K3와 GLM을 DS2API 별칭으로 연결하지 않습니다.
+NVIDIA 엔드포인트는 프로토타입·무료 우선 경로이므로 영구 가용성을 가정하지 않습니다. 429·503·용량 오류가 발생하면 공급자 서킷을 잠시 열고 다음 경로로 자동 전환합니다. DS2API의 DeepSeek fallback은 기본 비활성화이며 DeepSeek 전용입니다. K3는 별도의 `ds2api-kimi-k3` 호환 프로필을 통해 `kimi-k3`라는 OpenAI/DS2API 형식의 요청명을 제공하지만, 실제 실행은 공식 Kimi Code OAuth 세션에서 이루어집니다. K3를 DeepSeek 모델에 잘못 매핑하지 않습니다.
 
 ## 1. 전체 설치
 
@@ -96,6 +97,35 @@ VPS 배포 템플릿은 `docker-compose.providers.yml`입니다. DS2API fork 이
 ```
 
 브라우저에서 본인이 직접 Kimi OAuth 승인을 완료합니다. 아이디·비밀번호·OAuth 토큰을 다른 사람에게 전달하지 마세요.
+
+### Kimi K3 DS2API 호환 MCP 경로
+
+공식 Kimi 계정 로그인을 완료하면 `kimi-k3`를 Kimi Code OAuth의 `k3` 모델로
+해석하는 호환 alias가 활성화됩니다. 이 alias는 외부 DS2API의 DeepSeek 계정
+pool을 K3로 위장하지 않으며, K3 gateway의 OpenAI-compatible
+`/v1/chat/completions`와 MCP `dispatch_subagent(model="kimi-k3")` 양쪽에서
+사용할 수 있습니다.
+
+```bash
+./scripts/login-k3-ds2api.sh
+./scripts/doctor.sh
+```
+
+Minis MCP 호출 예시는 다음과 같습니다.
+
+```text
+dispatch_subagent(
+  task="프로젝트를 분석하고 변경 계획을 작성해줘",
+  cwd="/path/to/workspace",
+  role="coder",
+  model="kimi-k3",
+  thinking="high"
+)
+```
+
+`ds2api-kimi-k3`는 요청/모델 명명 호환 계층이고, CJackHwang DS2API의
+`ds2api-deepseek-v4-flash` 계정 로그인 경로와는 분리됩니다. Kimi 계정 비밀번호는
+환경변수·GitHub·MCP payload에 넣지 않고 공식 OAuth 로그인 화면에서만 입력합니다.
 
 > **K3 이용 조건:** `k3-256k`와 `k3`는 Kimi Code Moderato 이상에서 사용할 수 있습니다. `k3`의 최대 1M 컨텍스트는 Allegretto 이상에서 열립니다. 권한이 없거나 할당량이 소진되어 401이 반환되면, 게이트웨이는 새 요청에서 NVIDIA/공식 API 대체 경로로 전환합니다. 모델이나 reasoning effort를 바꿀 때는 캐시 손실을 피하도록 새 세션을 사용하세요.
 

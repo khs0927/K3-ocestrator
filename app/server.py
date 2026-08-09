@@ -101,8 +101,9 @@ async def ready(_: None = Depends(require_key)) -> JSONResponse:
 @app.get("/v1/models")
 async def models(_: None = Depends(require_key)) -> dict[str, Any]:
     created = int(time.time())
-    data = [
-        {
+    data: list[dict[str, Any]] = []
+    for profile in manager.registry.profiles.values():
+        row = {
             "id": profile.alias,
             "object": "model",
             "created": created,
@@ -111,8 +112,9 @@ async def models(_: None = Depends(require_key)) -> dict[str, Any]:
             "runtime_model": profile.model,
             "roles": profile.roles,
         }
-        for profile in manager.registry.profiles.values()
-    ]
+        data.append(row)
+        for request_alias in profile.request_aliases:
+            data.append({**row, "id": request_alias, "compatibility_alias": True})
     data.insert(
         0,
         {
@@ -145,6 +147,7 @@ def _provider_catalog() -> list[dict[str, Any]]:
             "transport": profile.transport,
             "provider_type": profile.provider_type,
             "model": profile.model,
+            "request_aliases": profile.request_aliases,
             "base_url": profile.public_base_url(),
             "auth_required": profile.auth_required,
             "runtime_required": profile.runtime_required,
@@ -184,8 +187,11 @@ async def provider_health(_: None = Depends(require_key)) -> list[dict[str, Any]
 
 @app.post("/api/provider-refresh")
 async def provider_refresh(request: ProviderRefreshRequest, _: None = Depends(require_key)) -> dict[str, Any]:
-    if request.alias and request.alias not in manager.registry.profiles:
-        raise HTTPException(status_code=404, detail=f"Unknown provider alias: {request.alias}")
+    if request.alias:
+        try:
+            manager.registry.get(request.alias)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=f"Unknown provider alias: {request.alias}") from exc
     manager.registry.refresh(request.alias)
     aliases = [request.alias] if request.alias else [
         profile.alias

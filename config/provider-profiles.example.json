@@ -37,6 +37,20 @@
       "description": "Official Kimi Code OAuth model for very large repositories and long context."
     },
     {
+      "alias": "ds2api-kimi-k3",
+      "display_name": "Kimi K3 DS2API-compatible OAuth",
+      "transport": "oauth",
+      "provider_type": "kimi",
+      "model": "k3",
+      "request_aliases": ["kimi-k3"],
+      "max_context_size": 1048576,
+      "capabilities": ["thinking", "tool_calls"],
+      "roles": ["orchestrator", "planner", "coder", "reviewer", "researcher", "long_context"],
+      "priority": 21,
+      "max_concurrency": 2,
+      "description": "DS2API/OpenAI-compatible Kimi K3 model name backed by the official Kimi Code OAuth session."
+    },
+    {
       "alias": "kimi-k3-api",
       "display_name": "Kimi K3 Official API",
       "transport": "api",

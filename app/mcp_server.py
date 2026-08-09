@@ -33,7 +33,7 @@ async def dispatch_subagent(
     model: str = "",
     thinking: str = "high",
 ) -> str:
-    """Dispatch one isolated read-only coding subagent and return its complete report."""
+    """Dispatch one isolated coding subagent; use model='kimi-k3' after Kimi OAuth login for the DS2API-compatible K3 route."""
     payload = {
         "prompt": task,
         "cwd": cwd,
