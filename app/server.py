@@ -86,6 +86,12 @@ async def health(_: None = Depends(require_key)) -> dict[str, Any]:
     }
 
 
+@app.get("/healthz", include_in_schema=False)
+async def healthz(_: None = Depends(require_key)) -> dict[str, Any]:
+    """DS2API-compatible health endpoint; authentication remains gateway-local."""
+    return await health(None)
+
+
 @app.get("/ready")
 async def ready(_: None = Depends(require_key)) -> JSONResponse:
     ready_profiles = manager.registry.candidates(settings.default_role)
@@ -96,6 +102,12 @@ async def ready(_: None = Depends(require_key)) -> JSONResponse:
         "available_providers": [profile.alias for profile in ready_profiles],
     }
     return JSONResponse(status_code=200 if payload["status"] == "ready" else 503, content=payload)
+
+
+@app.get("/readyz", include_in_schema=False)
+async def readyz(_: None = Depends(require_key)) -> JSONResponse:
+    """DS2API-compatible readiness endpoint; authentication remains gateway-local."""
+    return await ready(None)
 
 
 @app.get("/v1/models")
@@ -276,8 +288,11 @@ async def internal_provider_refresh(
     request: ProviderRefreshRequest,
     _: None = Depends(require_internal_key),
 ) -> dict[str, Any]:
-    if request.alias and request.alias not in manager.registry.profiles:
-        raise HTTPException(status_code=404, detail=f"Unknown provider alias: {request.alias}")
+    if request.alias:
+        try:
+            manager.registry.get(request.alias)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=f"Unknown provider alias: {request.alias}") from exc
     manager.registry.refresh(request.alias)
     aliases = [request.alias] if request.alias else [
         profile.alias

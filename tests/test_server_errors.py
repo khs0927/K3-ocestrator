@@ -112,6 +112,30 @@ async def test_models_advertise_kimi_k3_compatibility_name():
 
 
 @pytest.mark.asyncio
+async def test_ds2api_health_aliases_share_gateway_contract():
+    import app.server as server
+
+    health_response = await server.healthz(None)
+    ready_response = await server.readyz(None)
+
+    assert health_response["status"] == "ok"
+    assert ready_response.status_code in {200, 503}
+
+
+@pytest.mark.asyncio
+async def test_internal_provider_refresh_accepts_kimi_k3_request_alias():
+    import app.server as server
+
+    response = await server.internal_provider_refresh(
+        server.ProviderRefreshRequest(alias="kimi-k3"),
+        None,
+    )
+
+    assert response["results"][0]["alias"] == "kimi-k3"
+    assert response["results"][0]["verified"] is True
+
+
+@pytest.mark.asyncio
 async def test_openai_metadata_reasoning_effort_rejects_unknown_value():
     import app.server as server
 
