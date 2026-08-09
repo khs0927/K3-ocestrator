@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class OrchestrationMode(str, Enum):
@@ -105,6 +105,8 @@ class ConsensusResult(BaseModel):
 
 
 class ChatMessage(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     role: str
     content: Any
 
@@ -113,6 +115,7 @@ class ChatCompletionRequest(BaseModel):
     model: str = "multi-agent-orchestrator"
     messages: list[ChatMessage]
     stream: bool = False
+    reasoning_effort: Literal["low", "high", "max"] | None = None
     metadata: dict[str, Any] | None = None
     temperature: float | None = None
     max_tokens: int | None = None

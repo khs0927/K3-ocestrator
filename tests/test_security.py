@@ -31,21 +31,29 @@ def test_redact_text_removes_credentials_from_errors() -> None:
     assert "password-secret" not in redacted
     assert "jwt-secret" not in redacted
     assert "[REDACTED]" in redacted or "[REDACTED_API_KEY]" in redacted
-    header_error = "Headers({'authorization': 'Bearer header-secret', 'x-api-key': 'x-secret'})"
+    header_error = "Headers({'authorization': 'Bearer header-secret', 'x-api-key': 'x-secret', 'X-Auth-Token': 'auth-secret'})"
     assert "header-secret" not in redact_text(header_error)
     assert "x-secret" not in redact_text(header_error)
+    assert "auth-secret" not in redact_text(header_error)
+    assert "password-in-url" not in redact_text("upstream https://user:password-in-url@example.test/v1")
 
 
 def test_redact_payload_and_audit_logger_do_not_persist_credentials(tmp_path: Path) -> None:
     payload = {
         "error": "Bearer secret-token",
         "api_key": "raw-api-key",
+        "KIMI_MODEL_API_KEY": "runtime-api-key",
+        "KIMI_MODEL_REASONING_KEY": "runtime-reasoning-key",
+        "X-Auth-Token": "raw-auth-token",
         "nested": ["password=secret-password", {"token": "raw-token"}],
     }
     redacted = redact_payload(payload)
     assert "secret-token" not in str(redacted)
     assert "secret-password" not in str(redacted)
     assert "raw-api-key" not in str(redacted)
+    assert "runtime-api-key" not in str(redacted)
+    assert "runtime-reasoning-key" not in str(redacted)
+    assert "raw-auth-token" not in str(redacted)
     assert "raw-token" not in str(redacted)
 
     audit = AuditLogger(tmp_path / "audit.jsonl")

@@ -466,16 +466,63 @@ class KimiAcpRuntime:
             option_category = _field(option, "category")
             if option_category == category or option_id in fallback_ids:
                 selected_id = option_id
+                if category == "thought_level":
+                    supported = _field(option, "options", []) or []
+                    supported_values: set[str] = set()
+                    for item in supported:
+                        nested = _field(item, "options", []) or []
+                        values = nested or [item]
+                        supported_values.update(
+                            str(_field(candidate, "value", candidate))
+                            for candidate in values
+                        )
+                    if supported_values and value not in supported_values:
+                        raise KimiRuntimeError(
+                            f"ACP does not support reasoning effort {value!r}; "
+                            f"supported values are {sorted(supported_values)}"
+                        )
                 break
+        if category == "thought_level" and not selected_id:
+            raise KimiRuntimeError(
+                f"ACP did not advertise a reasoning-effort option for {value!r}"
+            )
         if selected_id:
             self.option_ids[category] = selected_id
         if selected_id and self.conn is not None:
             try:
-                await self.conn.set_config_option(
+                updated = await self.conn.set_config_option(
                     session_id=self.session_id,
                     config_id=selected_id,
                     value=value,
                 )
+                if category == "thought_level" and updated is None:
+                    raise KimiRuntimeError(
+                        f"ACP returned no confirmation for reasoning effort {value!r}"
+                    )
+                if category == "thought_level" and updated is not None:
+                    updated_options = _field(updated, "config_options", []) or []
+                    updated_option = next(
+                        (
+                            item
+                            for item in updated_options
+                            if str(_field(item, "id", "")) == selected_id
+                        ),
+                        None,
+                    )
+                    if updated_option is None:
+                        raise KimiRuntimeError(
+                            f"ACP response omitted the reasoning option for {value!r}"
+                        )
+                    current_value = _field(updated_option, "current_value")
+                    if current_value is None:
+                        raise KimiRuntimeError(
+                            f"ACP response omitted the applied reasoning value for {value!r}"
+                        )
+                    if str(current_value) != value:
+                        raise KimiRuntimeError(
+                            f"ACP did not apply reasoning effort {value!r}; "
+                            f"current value is {current_value!r}"
+                        )
             except Exception as exc:
                 self.audit.write(
                     "config_option_failed",
@@ -484,6 +531,12 @@ class KimiAcpRuntime:
                     value=value,
                     error=str(exc),
                 )
+                if category == "thought_level":
+                    if isinstance(exc, KimiRuntimeError):
+                        raise
+                    raise KimiRuntimeError(
+                        f"Unable to apply reasoning effort {value!r}: {type(exc).__name__}"
+                    ) from exc
 
     async def configure_mode(self, mode: OrchestrationMode) -> None:
         """Update only the orchestration mode on a live session.

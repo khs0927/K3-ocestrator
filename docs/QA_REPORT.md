@@ -5,7 +5,7 @@
 Executed in the K3 worktree:
 
 ```text
-./.venv/bin/python -m pytest -q                 PASS: 55 passed
+./.venv/bin/python -m pytest -q                 PASS: 73 passed
 ./scripts/validate.sh                           PASS: validation passed
 ./.venv/bin/python -m compileall -q app browser_bridge scripts   PASS
 python3 -m json.tool config/provider-profiles.example.json       PASS
@@ -31,6 +31,19 @@ cannot be swapped after partial output has reached the client.
 The live-gate contract tests exercise the DS2API health/readiness/model probes,
 ten synthetic chat iterations, exact-model fail-closed behavior, and explicit
 NVIDIA DeepSeek Flash to DS2API candidate ordering.
+The OpenAI-compatible K3 contract tests verify all top-level
+`reasoning_effort` values, upstream model identity, non-stream reasoning/tool
+metadata, and stream round-trip without duplicate aggregate deltas.
+ACP contract tests also fail closed for unsupported/unapplied thought-level
+values, preserve structured assistant reasoning/tool history in flattened
+multi-turn prompts, and restore persisted reasoning effort after restart.
+Security tests cover ACP runtime key variants, custom DS2API provider identity
+health probes, safe public catalog URLs, and rejected metadata reasoning values.
+Partial-stream tests cover message, thought, and tool events before a provider
+failure and prove that no fallback response is mixed into any of them.
+The release-gate tests require an ACP reasoning option advertisement and an
+explicit post-update current-value confirmation; missing or mismatched values
+fail closed.
 The settings/Compose tests cover root-only gateway, DS2API admin/JWT/API-key
 secret-file wiring and successful `docker compose config` rendering with the
 example environment and placeholder paths.
