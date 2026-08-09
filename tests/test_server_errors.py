@@ -264,6 +264,21 @@ async def test_gateway_ready_is_not_ready_without_kimi_or_available_provider(mon
 
 
 @pytest.mark.asyncio
+async def test_gateway_ready_requires_kimi_oauth_session_for_oauth_provider(monkeypatch, tmp_path):
+    import app.server as server
+
+    profile = server.manager.registry.get("ds2api-kimi-k3")
+    monkeypatch.setattr(server.manager.registry, "candidates", lambda _role: [profile])
+    monkeypatch.setattr(server.shutil, "which", lambda _command: "/usr/bin/kimi")
+    monkeypatch.setattr(server.settings, "kimi_code_home", tmp_path / "kimi-code")
+
+    response = await server.ready(None)
+
+    assert response.status_code == 503
+    assert response.body is not None and b'"kimi_oauth_session":false' in response.body
+
+
+@pytest.mark.asyncio
 async def test_orchestration_stream_redacts_structured_secret_payload(monkeypatch):
     import app.server as server
 

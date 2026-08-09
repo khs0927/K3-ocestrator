@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import __version__
-from .config import settings
+from .config import kimi_oauth_credentials_present, settings
 from .manager import SessionManager
 from .models import (
     ApprovalResolution,
@@ -79,6 +79,7 @@ async def health(_: None = Depends(require_key)) -> dict[str, Any]:
         "version": __version__,
         "kimi_command": shutil.which(settings.kimi_command),
         "kimi_code_home": str(settings.kimi_code_home.resolve()),
+        "kimi_oauth_session": kimi_oauth_credentials_present(settings.kimi_code_home),
         "live_sessions": len(manager.runtimes),
         "available_providers": [row["alias"] for row in available],
         "web_advisory_fallback": settings.enable_web_advisory_fallback,
@@ -96,9 +97,15 @@ async def healthz(_: None = Depends(require_key)) -> dict[str, Any]:
 async def ready(_: None = Depends(require_key)) -> JSONResponse:
     ready_profiles = manager.registry.candidates(settings.default_role)
     kimi_command = shutil.which(settings.kimi_command)
+    oauth_ready = bool(kimi_command and kimi_oauth_credentials_present(settings.kimi_code_home))
+    ready_profiles = [
+        profile for profile in ready_profiles
+        if profile.transport != "oauth" or oauth_ready
+    ]
     payload = {
-        "status": "ready" if ready_profiles and kimi_command else "not_ready",
+        "status": "ready" if ready_profiles else "not_ready",
         "kimi_command": kimi_command,
+        "kimi_oauth_session": oauth_ready,
         "available_providers": [profile.alias for profile in ready_profiles],
     }
     return JSONResponse(status_code=200 if payload["status"] == "ready" else 503, content=payload)

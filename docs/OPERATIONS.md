@@ -49,7 +49,9 @@ same route through MCP with `dispatch_subagent(model="kimi-k3")`. The Kimi
 account password is entered only in the official OAuth device flow; it is never
 accepted as a gateway setting, forwarded in an MCP request, or written to state.
 The smoke helper also checks gateway `/healthz`, `/readyz`, exact catalog identity,
-and one bounded non-stream chat without printing the response body.
+and one bounded non-stream chat without printing the response body. `/readyz` stays
+`503` until the Kimi CLI is installed and its OAuth credentials directory contains
+a local credential file; the file contents are never read by the doctor gate.
 
 ### DS2API DeepSeek fallback
 

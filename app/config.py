@@ -15,6 +15,15 @@ def _read_secret_file(path: Path | None) -> str:
         return ""
 
 
+def kimi_oauth_credentials_present(home: Path) -> bool:
+    """Check credential metadata without reading or logging OAuth secrets."""
+    credentials_dir = home.expanduser() / "credentials"
+    try:
+        return any(path.is_file() and path.suffix == ".json" for path in credentials_dir.iterdir())
+    except OSError:
+        return False
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
