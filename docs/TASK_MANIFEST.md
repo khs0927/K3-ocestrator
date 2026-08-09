@@ -6,11 +6,11 @@ that implemented the change.
 
 | Role | Scope | Current evidence | Status |
 |---|---|---|---|
-| Central K3 orchestrator | task graph, checkpoint/state, final integration | `app/manager.py`, `app/providers.py`, PR #1 | complete for offline gate |
+| Central K3 orchestrator | task graph, checkpoint/state, final integration | `app/manager.py`, `app/providers.py`, merged main `3dffc85` | complete for offline gate |
 | Compatibility researcher | K3, DS2API, NVIDIA GLM exact IDs and endpoint boundaries | `docs/PROVIDER_STRATEGY.md`, `docs/COMPATIBILITY.md` | complete |
 | Provider designer | common profile, discovery, circuit and bounded retry contract | `app/providers.py`, `app/models.py` | complete |
-| DS2API Go agent | DeepSeek-only upstream and Secret-file boundary | `ds2api-multi-provider` PR #2, head `7b0cdf2` | local Go test/vet and remote Quality Gates run `31281177776` pass |
-| K3 Python agent | ACP provider routing, DS2API fallback, K3 API/self-hosted profiles, MCP/API tools, stream metadata | implementation head `5eb21b4` | complete for offline gate |
+| DS2API Go agent | DeepSeek-only upstream and Secret-file boundary | `ds2api-multi-provider` PR #2, merged `8c65bd2` | local Go test/vet and post-merge Quality Gates run `31282317212` pass |
+| K3 Python agent | ACP provider routing, DS2API fallback, K3 API/self-hosted profiles, MCP/API tools, stream metadata | merged main `3dffc85` | complete for offline gate |
 | Adversarial reviewer | retry storm, session pinning, alias misuse, empty output, secret leakage | failure-injection and recursive redaction tests; review checklist | complete for offline gate |
 | QA agent | deterministic tests, imports, compile, exact-model mock gate, no-secret output | `docs/QA_REPORT.md` | complete for offline gate |
 | Remote SRE agent | Compose, private network, Secret files, watchdog, restart policy | `docker-compose.providers.yml`, `scripts/watchdog.py` | template complete; VPS unverified |
@@ -18,7 +18,7 @@ that implemented the change.
 
 ## Merge and release gates
 
-1. K3 feature branch stays behind PR #1; no direct main push.
+1. K3 changes merge through reviewed PRs; the current hardening merge is `3dffc85`.
 2. K3 public Actions must pass on Python 3.11 and 3.13.
 3. Local deterministic tests, compile/import checks and secret scan must pass.
 4. DS2API account password remains inside DS2API; K3 receives only the managed
