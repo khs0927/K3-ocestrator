@@ -5,7 +5,7 @@
 Executed in the K3 worktree:
 
 ```text
-./.venv/bin/python -m pytest -q                 PASS: 77 passed
+./.venv/bin/python -m pytest -q                 PASS: 79 passed
 ./scripts/validate.sh                           PASS: validation passed
 ./.venv/bin/python -m compileall -q app browser_bridge scripts   PASS
 python3 -m json.tool config/provider-profiles.example.json       PASS
@@ -47,7 +47,9 @@ fail closed.
 The K3 compatibility tests verify that the client-facing `kimi-k3` request name
 resolves to the official OAuth-backed `k3` runtime, is advertised by `/v1/models`,
 and reaches the MCP/OpenAI request path without treating K3 as a DeepSeek DS2API
-model.
+model. The DS2API front-door compatibility test also covers `/healthz` and
+`/readyz`; the post-login smoke helper validates the exact catalog and one bounded
+chat without printing response content or credentials.
 The settings/Compose tests cover root-only gateway, DS2API admin/JWT/API-key
 secret-file wiring and successful `docker compose config` rendering with the
 example environment and placeholder paths.
@@ -62,6 +64,8 @@ workflow SHAs are recorded in `docs/CI_SHA_MANIFEST.md`.
 ## Hosted evidence
 
 - K3 hardening PR #5: <https://github.com/khs0927/K3-ocestrator/pull/5>
+- K3 Kimi compatibility PR #7: <https://github.com/khs0927/K3-ocestrator/pull/7>
+- K3 Kimi compatibility merge `be5c6a3`; post-merge main CI: <https://github.com/khs0927/K3-ocestrator/actions/runs/31322095941>
 - K3 hardening head `6903ed0`; push CI: <https://github.com/khs0927/K3-ocestrator/actions/runs/31317890602>
 - K3 hardening PR CI: <https://github.com/khs0927/K3-ocestrator/actions/runs/31317809201>
 - K3 hardening merge commit `3dffc85`; post-merge main CI: <https://github.com/khs0927/K3-ocestrator/actions/runs/31318345818>

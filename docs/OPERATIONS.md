@@ -39,6 +39,7 @@ Use the dedicated login helper and then verify the catalog:
 ```bash
 ./scripts/login-k3-ds2api.sh
 ./scripts/doctor.sh
+GATEWAY_API_KEY_FILE=/root/k3-secrets/gateway-api-key ./scripts/smoke-k3-ds2api.sh
 curl http://127.0.0.1:8790/v1/models \
   -H "Authorization: Bearer YOUR_LOCAL_GATEWAY_KEY"
 ```
@@ -47,6 +48,8 @@ The catalog must contain `kimi-k3` with `runtime_model: k3`. Minis can call the
 same route through MCP with `dispatch_subagent(model="kimi-k3")`. The Kimi
 account password is entered only in the official OAuth device flow; it is never
 accepted as a gateway setting, forwarded in an MCP request, or written to state.
+The smoke helper also checks gateway `/healthz`, `/readyz`, exact catalog identity,
+and one bounded non-stream chat without printing the response body.
 
 ### DS2API DeepSeek fallback
 

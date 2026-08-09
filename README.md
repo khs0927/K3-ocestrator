@@ -109,6 +109,7 @@ pool을 K3로 위장하지 않으며, K3 gateway의 OpenAI-compatible
 ```bash
 ./scripts/login-k3-ds2api.sh
 ./scripts/doctor.sh
+GATEWAY_API_KEY_FILE=/path/to/gateway-api-key ./scripts/smoke-k3-ds2api.sh
 ```
 
 Minis MCP 호출 예시는 다음과 같습니다.
@@ -126,6 +127,9 @@ dispatch_subagent(
 `ds2api-kimi-k3`는 요청/모델 명명 호환 계층이고, CJackHwang DS2API의
 `ds2api-deepseek-v4-flash` 계정 로그인 경로와는 분리됩니다. Kimi 계정 비밀번호는
 환경변수·GitHub·MCP payload에 넣지 않고 공식 OAuth 로그인 화면에서만 입력합니다.
+K3 gateway는 DS2API 계열 점검 클라이언트가 사용하는 `/healthz`와 `/readyz`도
+제공하며, smoke 스크립트는 응답 본문이나 자격 증명을 출력하지 않고
+`kimi-k3 → ds2api-kimi-k3 → k3` 경로만 확인합니다.
 
 > **K3 이용 조건:** `k3-256k`와 `k3`는 Kimi Code Moderato 이상에서 사용할 수 있습니다. `k3`의 최대 1M 컨텍스트는 Allegretto 이상에서 열립니다. 권한이 없거나 할당량이 소진되어 401이 반환되면, 게이트웨이는 새 요청에서 NVIDIA/공식 API 대체 경로로 전환합니다. 모델이나 reasoning effort를 바꿀 때는 캐시 손실을 피하도록 새 세션을 사용하세요.
 
