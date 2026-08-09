@@ -38,6 +38,10 @@ class ProviderProfile(BaseModel):
     provider_type: ProviderProtocol = "openai"
     provider_id: str | None = None
     model: str
+    # Client-facing names accepted by the gateway and MCP callers. Keep the
+    # provider alias stable for persisted sessions while allowing a provider
+    # to expose a DS2API/OpenAI-compatible model name.
+    request_aliases: list[str] = Field(default_factory=list)
     base_url: str | None = None
     api_key_env: str | None = None
     api_key_value: str | None = Field(default=None, exclude=True, repr=False)
@@ -86,7 +90,11 @@ class ProviderProfile(BaseModel):
         return f"{provider}:{self.model}"
 
     def is_ds2api(self) -> bool:
-        return self.provider_id == "ds2api" or self.alias.startswith("ds2api-")
+        # The original DS2API integration is DeepSeek-only. The
+        # ``ds2api-kimi-k3`` profile is a client-facing compatibility alias
+        # backed by Kimi Code OAuth and must not inherit the DeepSeek model
+        # restriction merely because its name contains ``ds2api``.
+        return self.provider_id == "ds2api" or self.alias.startswith("ds2api-deepseek-")
 
     def public_base_url(self) -> str | None:
         """Return a catalog-safe URL without userinfo, query, or fragment."""
@@ -170,6 +178,23 @@ DEFAULT_PROFILES: list[dict[str, Any]] = [
         "priority": 20,
         "max_concurrency": 2,
         "description": "Official Kimi Code OAuth model for very large repositories and long context.",
+    },
+    {
+        "alias": "ds2api-kimi-k3",
+        "display_name": "Kimi K3 DS2API-compatible OAuth",
+        "transport": "oauth",
+        "provider_type": "kimi",
+        "model": "k3",
+        "request_aliases": ["kimi-k3"],
+        "max_context_size": 1048576,
+        "capabilities": ["thinking", "tool_calls"],
+        "roles": ["orchestrator", "planner", "coder", "reviewer", "researcher", "long_context"],
+        "priority": 21,
+        "max_concurrency": 2,
+        "description": (
+            "DS2API/OpenAI-compatible Kimi K3 model name backed by the official Kimi Code "
+            "OAuth session; login remains in Kimi Code and no password is stored by the gateway."
+        ),
     },
     {
         "alias": "kimi-k3-api",
@@ -439,8 +464,11 @@ class ProviderRegistry:
     def get(self, alias: str) -> ProviderProfile:
         try:
             return self.profiles[alias]
-        except KeyError as exc:
-            raise KeyError(f"Unknown model/provider alias: {alias}") from exc
+        except KeyError:
+            for profile in self.profiles.values():
+                if alias in profile.request_aliases:
+                    return profile
+            raise KeyError(f"Unknown model/provider alias: {alias}") from None
 
     def available_profiles(self) -> list[ProviderProfile]:
         return [profile for profile in self.profiles.values() if profile.available()]
@@ -455,8 +483,11 @@ class ProviderRegistry:
         seen_health_keys: set[str] = set()
         now = time.time()
         for alias in aliases:
-            profile = self.profiles.get(alias)
-            if not profile or not profile.available():
+            try:
+                profile = self.get(alias)
+            except KeyError:
+                continue
+            if not profile.available():
                 continue
             if profile.health_key() in seen_health_keys:
                 continue
@@ -637,6 +668,7 @@ class ProviderRegistry:
                     "display_name": profile.display_name,
                     "transport": profile.transport,
                     "model": profile.model,
+                    "request_aliases": profile.request_aliases,
                     "health_key": profile.health_key(),
                     "available": profile.available(),
                     "runtime_required": profile.runtime_required,

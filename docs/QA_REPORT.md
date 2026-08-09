@@ -5,7 +5,7 @@
 Executed in the K3 worktree:
 
 ```text
-./.venv/bin/python -m pytest -q                 PASS: 73 passed
+./.venv/bin/python -m pytest -q                 PASS: 77 passed
 ./scripts/validate.sh                           PASS: validation passed
 ./.venv/bin/python -m compileall -q app browser_bridge scripts   PASS
 python3 -m json.tool config/provider-profiles.example.json       PASS
@@ -44,6 +44,10 @@ failure and prove that no fallback response is mixed into any of them.
 The release-gate tests require an ACP reasoning option advertisement and an
 explicit post-update current-value confirmation; missing or mismatched values
 fail closed.
+The K3 compatibility tests verify that the client-facing `kimi-k3` request name
+resolves to the official OAuth-backed `k3` runtime, is advertised by `/v1/models`,
+and reaches the MCP/OpenAI request path without treating K3 as a DeepSeek DS2API
+model.
 The settings/Compose tests cover root-only gateway, DS2API admin/JWT/API-key
 secret-file wiring and successful `docker compose config` rendering with the
 example environment and placeholder paths.

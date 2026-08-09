@@ -37,7 +37,7 @@ def test_api_profiles_are_unavailable_without_keys(monkeypatch):
     ):
         monkeypatch.delenv(name, raising=False)
     aliases = {profile.alias for profile in ProviderRegistry.load().available_profiles()}
-    assert aliases == {"k3-256k", "k3"}
+    assert aliases == {"k3-256k", "k3", "ds2api-kimi-k3"}
 
 
 def test_k3_api_and_self_hosted_profiles_are_explicit_and_opt_in(monkeypatch):
@@ -54,6 +54,25 @@ def test_k3_api_and_self_hosted_profiles_are_explicit_and_opt_in(monkeypatch):
     assert self_hosted.model == "moonshotai/Kimi-K3"
     assert self_hosted.enabled is False
     assert self_hosted.available() is False
+
+
+def test_kimi_k3_ds2api_compatible_alias_uses_official_oauth_session():
+    registry = ProviderRegistry.load()
+
+    profile = registry.get("kimi-k3")
+    assert profile.alias == "ds2api-kimi-k3"
+    assert registry.get("ds2api-kimi-k3") is profile
+    assert profile.transport == "oauth"
+    assert profile.model == "k3"
+    assert profile.request_aliases == ["kimi-k3"]
+    assert profile.api_key_env is None
+    assert profile.available() is True
+
+
+def test_preferred_model_can_use_ds2api_compatible_kimi_alias():
+    registry = ProviderRegistry.load()
+    candidates = registry.candidates("orchestrator", ["kimi-k3"])
+    assert candidates[0].alias == "ds2api-kimi-k3"
 
 
 def test_provider_api_key_file_fallback_and_direct_precedence(tmp_path: Path, monkeypatch):

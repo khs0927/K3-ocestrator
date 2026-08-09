@@ -27,6 +27,27 @@ The manual GitHub workflow also supports `kimi`; choose `kimi` with
 `KIMI_API_KEY` configured in the `live-provider-gate` environment to run the
 same exact-model and bounded synthetic-chat gate against the official API.
 
+### Kimi K3 DS2API-compatible model name
+
+After the official Kimi Code OAuth login, the gateway accepts `kimi-k3` as a
+DS2API/OpenAI-compatible request name. It resolves to the `ds2api-kimi-k3`
+profile and the internal Kimi Code `k3` model. This is a wire/name compatibility
+layer, not a DeepSeek model alias inside CJackHwang/ds2api.
+
+Use the dedicated login helper and then verify the catalog:
+
+```bash
+./scripts/login-k3-ds2api.sh
+./scripts/doctor.sh
+curl http://127.0.0.1:8790/v1/models \
+  -H "Authorization: Bearer YOUR_LOCAL_GATEWAY_KEY"
+```
+
+The catalog must contain `kimi-k3` with `runtime_model: k3`. Minis can call the
+same route through MCP with `dispatch_subagent(model="kimi-k3")`. The Kimi
+account password is entered only in the official OAuth device flow; it is never
+accepted as a gateway setting, forwarded in an MCP request, or written to state.
+
 ### DS2API DeepSeek fallback
 
 DS2API must be started and logged in separately. The gateway expects these local OpenAI-compatible endpoints:

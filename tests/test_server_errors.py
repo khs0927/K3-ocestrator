@@ -67,6 +67,51 @@ async def test_openai_reasoning_effort_reaches_k3_runtime(monkeypatch, reasoning
 
 
 @pytest.mark.asyncio
+async def test_openai_kimi_k3_compatibility_alias_reaches_k3_oauth_runtime(monkeypatch):
+    import app.server as server
+
+    captured = {}
+
+    async def fake_run(request):
+        captured["request"] = request
+        return OrchestrationResult(
+            session_id="session",
+            text="ok",
+            stop_reason="end_turn",
+            mode=OrchestrationMode.plan,
+            model="ds2api-kimi-k3",
+            provider="ds2api-kimi-k3",
+            role="orchestrator",
+            upstream_model="k3",
+        )
+
+    monkeypatch.setattr(server.manager, "run", fake_run)
+    response = await server.chat_completions(
+        ChatCompletionRequest(
+            model="kimi-k3",
+            messages=[ChatMessage(role="user", content="test")],
+            reasoning_effort="high",
+        ),
+        None,
+    )
+
+    assert captured["request"].model == "kimi-k3"
+    assert captured["request"].thinking == "high"
+    assert response["model"] == "ds2api-kimi-k3"
+    assert response["upstream_model"] == "k3"
+
+
+@pytest.mark.asyncio
+async def test_models_advertise_kimi_k3_compatibility_name():
+    import app.server as server
+
+    response = await server.models(None)
+    row = next(item for item in response["data"] if item["id"] == "kimi-k3")
+    assert row["compatibility_alias"] is True
+    assert row["runtime_model"] == "k3"
+
+
+@pytest.mark.asyncio
 async def test_openai_metadata_reasoning_effort_rejects_unknown_value():
     import app.server as server
 

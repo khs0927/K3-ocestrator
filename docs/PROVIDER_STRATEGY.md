@@ -2,7 +2,7 @@
 
 ## Kimi K3
 
-Use official Kimi Code OAuth as the primary orchestration route. It owns long-running project context, permissions, local tools and final synthesis. `k3-256k` is the normal default; `k3` is reserved for genuinely large cross-module context. The optional `kimi-k3-api` profile targets the official OpenAI-compatible API model `kimi-k3`, while `kimi-k3-self-hosted` targets an OpenAI-compatible vLLM/SGLang endpoint serving `moonshotai/Kimi-K3`; both require exact `/v1/models` discovery and never use DS2API credentials.
+Use official Kimi Code OAuth as the primary orchestration route. It owns long-running project context, permissions, local tools and final synthesis. `k3-256k` is the normal default; `k3` is reserved for genuinely large cross-module context. The `ds2api-kimi-k3` profile accepts the compatibility request name `kimi-k3` for OpenAI/DS2API-shaped callers and resolves to the official OAuth-managed `k3` model. The optional `kimi-k3-api` profile targets the official OpenAI-compatible API model `kimi-k3`, while `kimi-k3-self-hosted` targets an OpenAI-compatible vLLM/SGLang endpoint serving `moonshotai/Kimi-K3`; these routes never use DS2API DeepSeek account credentials.
 
 The OpenAI-compatible gateway entrypoint accepts top-level `reasoning_effort` values
 `low`, `high`, and `max`, maps them to the ACP thought-level option, and keeps the
@@ -18,7 +18,11 @@ tool-call events in both streaming and non-streaming modes.
 4. DeepSeek official API: low-cost and high-concurrency fallback.
 5. Personal DeepSeek web session: plan/review only after API routes fail.
 
-DS2API is a DeepSeek-only upstream. Its account login, password and session refresh remain inside the DS2API service. The gateway connects only to its OpenAI-compatible health/model/chat endpoints and never aliases K3 or GLM to DS2API.
+DS2API is a DeepSeek-only upstream in the CJackHwang implementation. Its account
+login, password and session refresh remain inside the DS2API service. The K3
+gateway's `ds2api-kimi-k3` name is intentionally a separate OAuth compatibility
+profile; it does not alias K3 or GLM to DeepSeek and does not claim that an
+unmodified DS2API server can serve Kimi K3.
 
 The official API is preferable to browser automation whenever a key and small balance are available because it has a documented protocol, tool calls and explicit error behavior.
 
