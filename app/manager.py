@@ -261,7 +261,16 @@ class SessionManager:
                 resolve_allowed_path(path, self.settings.workspace_roots())
                 for path in request.additional_directories
             ]
-            thinking = request.thinking or profile.default_thinking or self.settings.default_thinking
+            # A persisted ACP session must keep the reasoning level selected by
+            # its first request, including after a gateway restart. A new
+            # request may explicitly override it only when no session value is
+            # already persisted.
+            thinking = (
+                request.thinking
+                or meta.get("thinking")
+                or profile.default_thinking
+                or self.settings.default_thinking
+            )
             runtime = KimiAcpRuntime(
                 self.settings,
                 self.audit,

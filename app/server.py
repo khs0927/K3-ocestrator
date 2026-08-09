@@ -145,7 +145,7 @@ def _provider_catalog() -> list[dict[str, Any]]:
             "transport": profile.transport,
             "provider_type": profile.provider_type,
             "model": profile.model,
-            "base_url": profile.base_url,
+            "base_url": profile.public_base_url(),
             "auth_required": profile.auth_required,
             "runtime_required": profile.runtime_required,
             "runtime_verified": profile.runtime_verified,
@@ -371,6 +371,14 @@ async def chat_completions(
         mode = OrchestrationMode(mode_value)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"Unsupported orchestration mode: {mode_value}") from exc
+    allowed_reasoning_efforts = {"low", "high", "max"}
+    for field_name in ("reasoning_effort", "thinking"):
+        value = metadata.get(field_name)
+        if value is not None and (not isinstance(value, str) or value not in allowed_reasoning_efforts):
+            raise HTTPException(
+                status_code=400,
+                detail=f"{field_name} must be one of: low, high, max",
+            )
     system, prompt = flatten_openai_messages([message.model_dump() for message in request.messages])
     model = None if request.model == "multi-agent-orchestrator" else request.model
     orchestration = OrchestrationRequest(
@@ -381,7 +389,13 @@ async def chat_completions(
         role=str(metadata.get("role", "orchestrator")),
         cwd=metadata.get("cwd"),
         session_id=metadata.get("session_id"),
-        thinking=metadata.get("thinking"),
+        # Preserve the standard K3/OpenAI-facing spelling while retaining
+        # compatibility with the existing gateway metadata contract.
+        thinking=(
+            request.reasoning_effort
+            or metadata.get("reasoning_effort")
+            or metadata.get("thinking")
+        ),
         additional_directories=metadata.get("additional_directories", []),
         mcp_servers=metadata.get("mcp_servers", []),
         allow_fallback=bool(metadata.get("allow_fallback", True)),
@@ -422,6 +436,8 @@ async def chat_completions(
 
     async def stream_events() -> AsyncIterator[str]:
         emitted_text = False
+        emitted_reasoning = False
+        emitted_tool_calls = False
         async for event in manager.stream(orchestration):
             event_payload = redact_payload(event.payload)
             if event.event_type is EventType.message:
@@ -443,6 +459,7 @@ async def chat_completions(
                 if isinstance(content, dict) and content.get("type") == "text":
                     delta = str(content.get("text", ""))
                     if delta:
+                        emitted_reasoning = True
                         chunk = {
                             "id": completion_id,
                             "object": "chat.completion.chunk",
@@ -452,6 +469,14 @@ async def chat_completions(
                         }
                         yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
             elif event.event_type is EventType.tool:
+                emitted_tool_calls = bool(
+                    event_payload.get("tool_call_id")
+                    or event_payload.get("toolCallId")
+                    or event_payload.get("title")
+                    or event_payload.get("kind")
+                    or event_payload.get("raw_input")
+                    or event_payload.get("rawInput")
+                ) or emitted_tool_calls
                 chunk = {
                     "id": completion_id,
                     "object": "chat.completion.chunk",
@@ -479,8 +504,16 @@ async def chat_completions(
                     "choices": [{
                         "index": 0,
                         "delta": {
-                            **({"reasoning_content": event_payload["reasoning_content"]} if event_payload.get("reasoning_content") else {}),
-                            **({"tool_calls": event_payload["tool_calls"]} if event_payload.get("tool_calls") else {}),
+                            **(
+                                {"reasoning_content": event_payload["reasoning_content"]}
+                                if event_payload.get("reasoning_content") and not emitted_reasoning
+                                else {}
+                            ),
+                            **(
+                                {"tool_calls": event_payload["tool_calls"]}
+                                if event_payload.get("tool_calls") and not emitted_tool_calls
+                                else {}
+                            ),
                         },
                         "finish_reason": "stop",
                     }],

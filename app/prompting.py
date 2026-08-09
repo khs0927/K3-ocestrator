@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from .models import OrchestrationMode
@@ -67,12 +68,27 @@ def flatten_openai_messages(messages: list[dict[str, Any]]) -> tuple[str | None,
                 if isinstance(item, dict) and item.get("type") in {"text", "input_text"}:
                     texts.append(str(item.get("text") or item.get("input_text") or ""))
             content = "\n".join(texts)
-        if not isinstance(content, str) or not content.strip():
+        preserved: list[str] = []
+        if isinstance(content, str) and content.strip():
+            preserved.append(content.strip())
+        reasoning_content = message.get("reasoning_content")
+        if reasoning_content:
+            preserved.append(f"[REASONING_CONTENT]\n{str(reasoning_content).strip()}")
+        tool_calls = message.get("tool_calls")
+        if tool_calls:
+            preserved.append(
+                "[TOOL_CALLS]\n"
+                + json.dumps(tool_calls, ensure_ascii=False, separators=(",", ":"))
+            )
+        tool_call_id = message.get("tool_call_id")
+        if tool_call_id:
+            preserved.append(f"[TOOL_CALL_ID]\n{str(tool_call_id).strip()}")
+        if not preserved:
             continue
         if role == "system":
-            system_parts.append(content.strip())
+            system_parts.append("\n\n".join(preserved))
         else:
-            dialogue.append(f"[{role.upper()}]\n{content.strip()}")
+            dialogue.append(f"[{role.upper()}]\n" + "\n\n".join(preserved))
     if not dialogue:
         raise ValueError("At least one non-empty user message is required")
     system = "\n\n".join(system_parts) or None

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app import manager as manager_module
 from app.manager import SessionManager
 from app.models import (
     EventType,
@@ -62,6 +63,47 @@ async def test_run_profile_preserves_acp_prompt_metadata(tmp_path):
     assert result.reasoning_content == "internal reasoning"
     assert result.tool_calls == [{"tool_call_id": "call-1", "title": "read"}]
     assert result.upstream_model == "test-model"
+
+
+@pytest.mark.asyncio
+async def test_persisted_reasoning_effort_is_restored_after_runtime_restart(tmp_path, monkeypatch):
+    manager = object.__new__(SessionManager)
+    manager.settings = SimpleNamespace(workspace_roots=lambda: [tmp_path])
+    manager.runtimes = {}
+    manager.session_meta = {
+        "session": {
+            "workspace": str(tmp_path),
+            "provider": "k3-256k",
+            "thinking": "max",
+            "kimi_session_id": "saved-session",
+        }
+    }
+    manager._lock = asyncio.Lock()
+    manager._resolve_workspace = lambda _hint: tmp_path
+    manager._evict_if_needed = lambda: _completed()
+    manager._mcp_servers_for = lambda _request: []
+    manager.audit = SimpleNamespace(write=lambda *args, **kwargs: None)
+    manager._save_state = lambda: None
+
+    class FakeRuntime:
+        def __init__(self, *_args, thinking, **_kwargs):
+            self.thinking = thinking
+            self.started_with = None
+
+        async def start(self, existing_session_id=None):
+            self.started_with = existing_session_id
+            return existing_session_id or "new-session"
+
+    monkeypatch.setattr(manager_module, "KimiAcpRuntime", FakeRuntime)
+    profile = ProviderRegistry.load().get("k3-256k")
+    runtime = await manager._get_or_create_runtime(
+        OrchestrationRequest(prompt="continue", cwd=str(tmp_path)),
+        profile,
+        "session",
+    )
+
+    assert runtime.thinking == "max"
+    assert runtime.started_with == "saved-session"
 
 
 @pytest.mark.asyncio
@@ -281,7 +323,8 @@ async def test_stream_allows_new_request_to_fail_over_to_ds2api(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_stream_does_not_mix_fallback_after_partial_provider_output(tmp_path):
+@pytest.mark.parametrize("partial_event", [EventType.message, EventType.thought, EventType.tool])
+async def test_stream_does_not_mix_fallback_after_partial_provider_output(tmp_path, partial_event):
     manager = object.__new__(SessionManager)
     manager.settings = SimpleNamespace(max_route_attempts=3)
     manager.registry = ProviderRegistry.load()
@@ -307,12 +350,17 @@ async def test_stream_does_not_mix_fallback_after_partial_provider_output(tmp_pa
     async def fake_run(_request, profile, _task_prompt, external_id):
         calls.append(profile.alias)
         if profile.alias == nvidia.alias:
+            payload = (
+                {"content": {"type": "text", "text": "partial"}}
+                if partial_event is not EventType.tool
+                else {"tool_call_id": "call-1", "title": "read"}
+            )
             await manager._emit(
                 external_id,
                 GatewayEvent(
-                    event_type=EventType.message,
+                    event_type=partial_event,
                     timestamp=0,
-                    payload={"content": {"type": "text", "text": "partial"}},
+                    payload=payload,
                 ),
             )
             raise KimiRuntimeError("503 after partial output")
@@ -333,7 +381,7 @@ async def test_stream_does_not_mix_fallback_after_partial_provider_output(tmp_pa
     ]
 
     assert calls == [nvidia.alias]
-    assert events[0].event_type is EventType.message
+    assert events[0].event_type is partial_event
     assert events[-1].event_type is EventType.error
 
 

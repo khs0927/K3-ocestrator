@@ -12,6 +12,7 @@ class PathSecurityError(ValueError):
 
 
 _SENSITIVE_TEXT_PATTERNS = (
+    (re.compile(r"(?i)(https?://)[^/\s@]+@"), r"\1[REDACTED]@"),
     (
         re.compile(r"(?i)(\bauthorization[\"']?\s*[:=]\s*[\"']?(?:bearer\s+)?)[^\s,;}\]]+"),
         r"\1[REDACTED]",
@@ -19,7 +20,7 @@ _SENSITIVE_TEXT_PATTERNS = (
     (re.compile(r"(?i)(\bbearer\s+)[^\s,;}\]]+"), r"\1[REDACTED]"),
     (
         re.compile(
-            r"(?i)([\"']?(?:x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|secret|jwt[_-]?secret)[\"']?\s*[:=]\s*[\"']?)[^\"'\s,;}\]]+"
+            r"(?i)([\"']?(?:authorization|x[-_]?auth[-_]?token|x[-_]?api[-_]?key|api[_-]?key|access[_-]?token|refresh[_-]?token|reasoning[_-]?key|token|password|secret|jwt[_-]?secret)[\"']?\s*[:=]\s*[\"']?)[^\"'\s,;}\]]+"
         ),
         r"\1[REDACTED]",
     ),
@@ -31,7 +32,7 @@ _SENSITIVE_TEXT_PATTERNS = (
     (re.compile(r"\bsk-[A-Za-z0-9_-]+"), "[REDACTED_API_KEY]"),
 )
 _SENSITIVE_PAYLOAD_KEYS = re.compile(
-    r"(?i)^(?:authorization|x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|secret|jwt[_-]?secret|cookie)$"
+    r"(?i)(?:authorization|auth(?:[_-]?orization)?[_-]?token|api[_-]?key|access[_-]?token|refresh[_-]?token|reasoning[_-]?key|token|password|secret|jwt[_-]?secret|cookie)$"
 )
 
 
@@ -50,7 +51,8 @@ def redact_payload(value: Any) -> Any:
     if isinstance(value, dict):
         redacted: dict[Any, Any] = {}
         for key, item in value.items():
-            if _SENSITIVE_PAYLOAD_KEYS.fullmatch(str(key).strip()):
+            normalized_key = str(key).strip().replace("-", "_")
+            if _SENSITIVE_PAYLOAD_KEYS.search(normalized_key):
                 redacted[key] = "[REDACTED]"
             else:
                 redacted[key] = redact_payload(item)

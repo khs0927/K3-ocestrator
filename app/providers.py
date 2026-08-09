@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any, Literal
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import httpx
 from pydantic import BaseModel, Field, ValidationError
@@ -76,9 +76,37 @@ class ProviderProfile(BaseModel):
         provider = self.provider_id
         if not provider and self.base_url:
             parsed = urlparse(self.base_url)
-            provider = parsed.netloc or parsed.path
+            provider = parsed.hostname or parsed.path
+            try:
+                if parsed.port:
+                    provider = f"{provider}:{parsed.port}"
+            except ValueError:
+                provider = parsed.hostname or parsed.path
         provider = provider or self.transport
         return f"{provider}:{self.model}"
+
+    def is_ds2api(self) -> bool:
+        return self.provider_id == "ds2api" or self.alias.startswith("ds2api-")
+
+    def public_base_url(self) -> str | None:
+        """Return a catalog-safe URL without userinfo, query, or fragment."""
+        if not self.base_url:
+            return None
+        try:
+            parsed = urlparse(self.base_url)
+            if not parsed.scheme:
+                return parsed.path
+            hostname = parsed.hostname or ""
+            if ":" in hostname and not hostname.startswith("["):
+                hostname = f"[{hostname}]"
+            try:
+                port = parsed.port
+            except ValueError:
+                port = None
+            netloc = f"{hostname}:{port}" if port else hostname
+            return urlunparse((parsed.scheme, netloc, parsed.path, "", "", ""))
+        except ValueError:
+            return "[REDACTED_URL]"
 
     def available(self) -> bool:
         if not self.enabled:
@@ -110,7 +138,7 @@ class ProviderProfile(BaseModel):
         if key:
             env["KIMI_MODEL_API_KEY"] = key
         if self.base_url:
-            env["KIMI_MODEL_BASE_URL"] = self.base_url
+            env["KIMI_MODEL_BASE_URL"] = self.public_base_url() or self.base_url
         if self.max_output_size:
             env["KIMI_MODEL_MAX_OUTPUT_SIZE"] = str(self.max_output_size)
         if self.reasoning_key:
@@ -380,9 +408,7 @@ class ProviderRegistry:
         profiles = {p.alias: p for p in (ProviderProfile.model_validate(item) for item in raw_profiles)}
         for profile in profiles.values():
             if (
-                profile.provider_id == "ds2api"
-                or profile.alias.startswith("ds2api-")
-                or (profile.base_url and urlparse(profile.base_url).netloc.endswith(":5001"))
+                profile.is_ds2api()
             ) and profile.model != "deepseek-v4-flash":
                 profile.enabled = False
                 profile.runtime_verified = False
@@ -560,11 +586,11 @@ class ProviderRegistry:
         headers = {"Accept": "application/json"}
         if key:
             headers["Authorization"] = f"Bearer {key}"
-        base = profile.base_url.rstrip("/")
+        base = (profile.public_base_url() or profile.base_url).rstrip("/")
         checks: dict[str, Any] = {}
         try:
             async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
-                if alias.startswith("ds2api-"):
+                if profile.is_ds2api():
                     root = base.removesuffix("/v1")
                     for name in ("healthz", "readyz"):
                         response = await client.get(f"{root}/{name}", headers=headers)

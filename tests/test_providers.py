@@ -12,7 +12,7 @@ import httpx
 
 from app.config import Settings
 from app.manager import SessionManager
-from app.providers import ProviderProfile, ProviderRegistry
+from app.providers import ProviderProfile, ProviderRegistry, ProviderRuntimeState
 
 
 def test_nvidia_profiles_become_available_with_bound_key():
@@ -250,6 +250,60 @@ def test_ds2api_runtime_gate_checks_health_readiness_and_exact_model(monkeypatch
     assert result["checks"]["readyz"]["ok"] is True
     assert profile.runtime_verified is True
     assert profile.available() is True
+
+
+def test_custom_ds2api_provider_identity_runs_health_probes_and_redacts_url(monkeypatch):
+    calls: list[str] = []
+
+    class Response:
+        status_code = 200
+        is_success = True
+
+        def __init__(self, url: str):
+            self.url = url
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"data": [{"id": "deepseek-v4-flash"}]} if self.url.endswith("/models") else {"status": "ok"}
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, url, **_kwargs):
+            calls.append(url)
+            return Response(url)
+
+    monkeypatch.setattr("app.providers.httpx.AsyncClient", lambda **_kwargs: Client())
+    registry = ProviderRegistry.load()
+    profile = ProviderProfile(
+        alias="remote-fallback",
+        display_name="Remote DS2API",
+        provider_id="ds2api",
+        model="deepseek-v4-flash",
+        base_url="https://user:password@ds2api.example/v1?token=secret#fragment",
+        auth_required=False,
+        runtime_required=True,
+        enabled=True,
+    )
+    registry.profiles[profile.alias] = profile
+    registry.states[profile.health_key()] = ProviderRuntimeState()
+
+    result = __import__("asyncio").run(registry.verify_runtime(profile.alias))
+
+    assert result["verified"] is True
+    assert calls == [
+        "https://ds2api.example/healthz",
+        "https://ds2api.example/readyz",
+        "https://ds2api.example/v1/models",
+    ]
+    assert "password" not in profile.health_key()
+    assert profile.public_base_url() == "https://ds2api.example/v1"
 
 
 def test_kimi_k3_api_runtime_gate_requires_exact_model(monkeypatch):
